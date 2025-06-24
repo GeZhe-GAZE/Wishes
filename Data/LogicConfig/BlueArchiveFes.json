@@ -1,0 +1,33 @@
+{
+    "name": "蔚蓝档案-Fes卡池-抽卡规则",
+    "rules": [
+        "StarPityRule",
+        "StarProbabilityRule",
+        "UpRule",
+        "FesRule",
+        "TypeStarProbabilityRule",
+        "StarCounterRule",
+        "TypeStarCounterRule"
+    ],
+    "star_probability": {
+        "3": 600,
+        "2": 1850,
+        "1": 7550
+    },
+    "star_pity": {
+        "2": 10
+    },
+    "type_probability": {
+        "3": {"Role": 10000},
+        "2": {"Role": 10000},
+        "1": {"Role": 10000}
+    },
+    "up_probability": {
+        "3": 1667
+    },
+    "up_pity": {
+    },
+    "fes_probability": {
+        "3": 7000
+    }
+}

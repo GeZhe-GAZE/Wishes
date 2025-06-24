@@ -1,0 +1,16 @@
+{
+    "name": "Test",
+    "version": "",
+    "is_official": false,
+    "up": {
+        "Star5": [
+            "胡桃"
+        ],
+        "Star4": [
+            "行秋",
+            "迪奥娜",
+            "菲谢尔"
+        ]
+    },
+    "resident": "Data/ResidentGroups/GenshinRole.json"
+}

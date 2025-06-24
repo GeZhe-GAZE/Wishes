@@ -1,0 +1,14 @@
+{
+    "Genshin": {
+        "Role": [5, 4],
+        "Weapon": [5, 4, 3]
+    },
+    "StarRail": {
+        "Role": [5, 4],
+        "Weapon": [5, 4, 3]
+    },
+    "ZZZ": {
+        "Role": [5, 4],
+        "Weapon": [5, 4, 3]
+    }
+}

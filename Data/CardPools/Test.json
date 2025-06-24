@@ -1,0 +1,21 @@
+{
+    "name": "Test",
+    "game": "Genshin",
+    "type": "Role",
+    "card_group": "Test",
+    "record_dir": "Data/Records/Test",
+    "logic_config": {
+        "counter": {
+            "Star5": 0,
+            "Star4": 0
+        },
+        "probability": {
+            "Star5": 60,
+            "Star4": 510
+        },
+        "next_up": {
+            "Star5": false,
+            "Star4": false
+        }
+    }
+}
