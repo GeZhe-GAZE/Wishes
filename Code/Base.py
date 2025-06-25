@@ -56,6 +56,13 @@ class Card:
             profession=data["profession"],
             image_path=data["image_path"]
         )
+
+    @staticmethod
+    def none() -> "Card":
+        """
+        返回空卡片
+        """
+        return Card(content="", game="", star=0, type="", attribute="")
     
     def usable(self) -> bool:
         """
@@ -71,79 +78,249 @@ class PackedCard:
     """
     对卡片的二次封装，用于在抽卡时使用
     """
-    def __init__(self, card: Card, is_up: bool = False, is_appoint: bool = False) -> None:
+    def __init__(self, card: Card, is_up: bool = False, is_fes: bool = False,is_appoint: bool = False):
         self.card = card
         self.is_up = is_up              # 在当前卡组中是否为 UP
+        self.is_fes = is_fes            # 在当前卡组中是否为 Fes
         self.is_appoint = is_appoint    # 在当前卡组中是否为 定轨
     
     def __str__(self) -> str:
-        return f"PackedCard({self.card}, {self.is_up}, {self.is_appoint})"
+        return f"PackedCard({self.card}, {self.is_up}, {self.is_fes}, {self.is_appoint})"
+
+
+class SingleTagCardGroup:
+    """
+    单标签卡池组
+    处理单个标签组内的卡片管理
+    管理结构：
+    类型 -> 星级 -> 卡片名称: 卡片对象
+    """
+    def __init__(self, name: str):
+        self.name = name
+
+        # 类型 -> 星级 -> 卡片名称: 卡片对象
+        self.cards: Dict[str, Dict[int, Dict[str, Card]]] = {}
+        # 卡片总数
+        self.count = 0
+        # 最高星级 (最高稀有度)
+        self.max_star = 0
+    
+    def __str__(self) -> str:
+        cards_info = "\n".join([
+            f"  - {type_}:\n" + "\n".join([
+                f"    - Star{star}:\n" + "\n".join([
+                    f"      - {card}"
+                    for card in card_dict.values()
+                ])
+                for star, card_dict in star_dict.items()
+            ])
+            for type_, star_dict in self.cards.items()
+        ])
+
+        return "\n".join([
+            f"SingleTagCardGroup <{self.name}>",
+            f"- count: {self.count}",
+            f"- max_star: {self.max_star}",
+            "- cards:",
+            cards_info
+        ])
+    
+    def add_type(self, type_: str):
+        """
+        添加卡片类型
+        """
+        if type_ not in self.cards:
+            self.cards[type_] = {}
+    
+    def add_star(self, type_: str, star: int):
+        """
+        添加星级
+        """
+        if type_ not in self.cards:
+            self.cards[type_] = {}
+        if star not in self.cards[type_]:
+            self.cards[type_][star] = {}
+    
+    def add_card(self, card: Card):
+        """
+        添加卡片
+        """
+        if card.type not in self.cards:
+            self.cards[card.type] = {}
+        if card.star not in self.cards[card.type]:
+            self.cards[card.type][card.star] = {}
+
+        target = self.cards[card.type][card.star]
+        if card.content not in target:
+            target[card.content] = card
+            self.count += 1
+            self.max_star = max(self.max_star, card.star)
+    
+    def random_card(self, type_: str, star: int) -> Card:
+        """
+        随机抽取一个卡片
+        """
+        if type_ not in self.cards or star not in self.cards[type_]:
+            return Card.none()
+
+        target = self.cards[type_][star]
+        if not target:
+            return Card.none()
+
+        return choice(list(target.values()))
+    
+    def remove_card(self, type_: str, star: int, content: str):
+        """
+        删除卡片
+        """
+        target = self.cards[type_][star]
+        if content in target:
+            del target[content]
+            self.count -= 1
+            if star >= self.max_star:
+                # 更新最高星级
+                self.max_star = max([max(stars.keys()) for stars in self.cards.values()])
+    
+    def types(self) -> List[str]:
+        """
+        获取所有类型
+        """
+        return list(self.cards.keys())
+    
+    def stars(self, type_: str) -> List[int]:
+        """
+        获取指定类型组内所有星级
+        """
+        if type_ not in self.cards:
+            return []
+        return list(self.cards[type_].keys())
+    
+    def card_contents(self, type_: str, star: int) -> List[str]:
+        """
+        获取指定类型组内指定星级内所有卡片名称
+        """
+        if type_ not in self.cards or star not in self.cards[type_]:
+            return []
+        return list(self.cards[type_][star].keys())
 
 
 class CardGroup:
     """
-    卡组类，根据卡片星级管理卡片
-    确保卡组内的卡片不相同
+    完整卡组类
+    卡池管理结构：
+    标签 -> 类型 -> 星级 -> 卡片名称: 卡片对象
+    默认带有 TAG_RESIDENT 标签
+    可添加 TAG_UP, TAG_FES, TAG_APPOINT 标签
+
+    *在 Wishes 中，所有非 TAG_UP, TAG_FES, TAG_APPOINT 标签的卡片均视为 TAG_RESIDENT 标签组
     """
-    def __init__(self, name: str, version: str = "", is_official: bool = False):
+    def __init__(self, name: str, resident_card_group: SingleTagCardGroup, version: str = "", is_official: bool = False):
         self.name = name                    # 卡组名称
         self.is_official = is_official      # 是否为官方卡组
         self.version = version              # 卡组版本，仅在官方卡组内可用
         
         # 卡池管理结构
-        self.cards: Dict[str, Dict[str, Dict[int, Dict[str, Card]]]] = {"resident": {}}
+        self.cards: Dict[str, SingleTagCardGroup] = {TAG_RESIDENT: resident_card_group}
         # 最高星级 (最高稀有度)
         self.max_star = 0
         # 卡片总数
         self.count = 0
     
     def __str__(self) -> str:
-        cards_info = ""
-        for tag, tag_dict in self.cards.items():
-            cards_info += f"- {tag}\n"
-            for type_, type_dict in tag_dict.items():
-                cards_info += f"-   {type_}\n"
-                for star, card_dict in type_dict.items():
-                    cards_info += f"-     Star{star}\n"
-                    cards_info += "\n".join([str(card) for card in card_dict.values()])
+        cards_info = "\n".join([
+            f"  - {tag} group:\n" + "\n".join(["    " + row for row in str(group).split("\n")])
+            for tag, group in self.cards.items()
+        ])
 
         return "\n".join((
-            f"CardGroup <{self.name}>",
-            f"version: {self.version if self.version else "no-version"}  is_official: {self.is_official}",
-            f"count: {self.count}",
-            "cards:",
+            f"CardGroup <{self.name}> " + "-" * 30,
+            f"version: {self.version if self.version else "no-version"} | is_official: {self.is_official}",
+            f"- count: {self.count}",
+            f"- max_star: {self.max_star}",
+            "- cards:",
             cards_info
         ))
 
     def add_up(self):
-        self.cards["up"] = {}
+        """
+        添加 UP 组
+        """
+        if TAG_UP not in self.cards:
+            self.cards[TAG_UP] = SingleTagCardGroup(self.name + f"-{TAG_UP}")
+    
+    def add_fes(self):
+        """
+        添加 Fes 组
+        """
+        if TAG_FES not in self.cards:
+            self.cards[TAG_FES] = SingleTagCardGroup(self.name + f"-{TAG_FES}")
+    
+    def add_appoint(self):
+        """
+        添加 定轨 组
+        """
+        if TAG_APPOINT not in self.cards:
+            self.cards[TAG_APPOINT] = SingleTagCardGroup(self.name + f"-{TAG_APPOINT}")
+    
+    def add_type(self, type_: str, tag: str = TAG_RESIDENT):
+        """
+        在指定组中添加卡片类型
+        """
+        if tag not in self.cards:
+            return
+        if type_ not in self.cards[tag].types():
+            self.cards[tag].add_type(type_)
 
-    def add_star(self, star: int, type_: str, is_up: bool = False):
-        self.cards["up" if is_up else "resident"][type_][star] = {}
-        self.max_star = max(self.max_star, star)
+    def add_star(self, type_: str, star: int, tag: str = TAG_RESIDENT):
+        """
+        在指定组的类型组中添加星级
+        """
+        if tag not in self.cards:
+            return
+        if type_ not in self.cards[tag].types():
+            return
+        if star not in self.cards[tag].stars(type_):
+            self.cards[tag].add_star(type_, star)
+            self.max_star = max(self.max_star, star)
     
-    def add_card(self, card: Card, is_up: bool = False):
+    def add_card(self, card: Card, tag: str = TAG_RESIDENT):
         """
-        添加卡片
+        添加卡片到指定组
         """
-        target = self.cards["up" if is_up else "resident"][card.type][card.star]
+        if tag not in self.cards:
+            return
+        if card.type not in self.cards[tag].types():
+            return
+        if card.star not in self.cards[tag].stars(card.type):
+            return
+        
+        target = self.cards[tag].card_contents(card.type, card.star)
         if card.content not in target:
-            target[card.content] = card
+            self.cards[tag].add_card(card)
             self.count += 1
-    
-    def random_card(self, type_: str, star: int, is_up: bool = False) -> Card:
+            self.max_star = max(self.max_star, card.star)
+
+    def random_card(self, type_: str, star: int, tag: str = TAG_RESIDENT) -> Card:
         """
-        等概率抽取一个卡片
+        随机抽取一个卡片
         """
-        return choice(tuple(self.cards["up" if is_up else "resident"][type_][star].values()))
+        if tag not in self.cards or type_ not in self.cards[tag].types() or star not in self.cards[tag].stars(type_):
+            return Card.none()
+        
+        return self.cards[tag].random_card(type_, star)
     
-    def remove_card(self, type_: str, star: int, content: str, is_up: bool = False):
+    def remove_card(self, type_: str, star: int, content: str, tag: str = TAG_RESIDENT):
         """
         删除卡片
         """
-        target = self.cards["up" if is_up else "resident"][type_][star]
-        if content in target:
-            del target[content]
+        if tag not in self.cards:
+            return
+        
+        self.count -= self.cards[tag].count
+        self.cards[tag].remove_card(type_, star, content)   # 删除卡片
+        self.count += self.cards[tag].count     # 通过两次加减卡片数，自动适配卡片删除成功/失败时的卡片数量变化
+        # 更新最高星级
+        self.max_star = max([group.max_star for group in self.cards.values()])
 
 
 class WishResult:
@@ -170,6 +347,17 @@ class LogicResult:
     type_: str
     is_up: bool = False
     is_fes: bool = False
+    is_appoint: bool = False
 
     def __str__(self) -> str:
-        return f"LogicResult({self.star}, '{self.type_}', {self.is_up}, {self.is_fes})"
+        return f"LogicResult({self.star}, '{self.type_}', {self.is_up}, {self.is_fes}, {self.is_appoint})"
+
+
+if __name__ == '__main__':
+    p = SingleTagCardGroup("test-resident")
+    print(p)
+    g = CardGroup("test", p)
+    g.add_up()
+    g.add_fes()
+    g.add_appoint()
+    print(g)

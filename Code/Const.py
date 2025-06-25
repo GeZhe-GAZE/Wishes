@@ -30,3 +30,10 @@ GAME_ZZZ = "ZZZ"
 
 # NOTE: 其他
 NO_VERSION = "no-version"
+
+# NOTE: 卡组内卡片分类标签
+TAG_UP = "up"
+TAG_FES = "fes"
+TAG_APPOINT = "appoint"
+TAG_RESIDENT = "resident"
+

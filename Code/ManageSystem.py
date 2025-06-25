@@ -65,14 +65,14 @@ class CardSystem:
         查找卡片并返回
         通过指定 game, type_, star 等可选过滤条件快速查找
         若系统中存在相同 content 的卡片，则只返回第一个匹配的卡片
-        若没有匹配的卡片，则返回空卡片: Card(content="", game="",  star=0, type="", attribute="")
+        若没有匹配的卡片，则返回空卡片: Card.none()
         """
         # 当提供全部过滤条件时，尝试精确查找
         if all((game, type_, star)):
             try:
                 return self.card_container[game][type_][star][content] # type: ignore
             except KeyError:
-                return Card(content="", game="",  star=0, type="", attribute="")
+                return Card.none()
         
         # 确定搜索游戏范围
         games = [game] if game and game in self.card_container else self.card_container.keys()
@@ -92,7 +92,7 @@ class CardSystem:
                         return card_dict[content]   # 找到
 
         # 未找到
-        return Card(content="", game="", star=0, type="", attribute="")
+        return Card.none()
     
     def has_card(self, card: Card) -> bool:
         """
@@ -129,12 +129,21 @@ class CardSystem:
         type_dict[card.star][card.content] = card
     
     def games(self) -> List[str]:
+        """
+        返回系统中所有游戏的名称列表
+        """
         return list(self.card_container.keys())
     
     def types(self, game: str) -> List[str]:
+        """
+        返回指定游戏中所有卡片类型的名称列表
+        """
         return list(self.card_container[game].keys())
     
     def stars(self, game: str, type_: str) -> List[int]:
+        """
+        返回指定游戏和类型中所有卡片星级的列表
+        """
         return list(self.card_container[game][type_].keys())
 
 
@@ -147,9 +156,10 @@ class CardGroupSystem:
         self.card_system = card_system
 
         for filename in os.listdir(card_group_dir):
-            path = os.path.join(card_group_dir, filename)
-            group = self.load_group_from_json(path)
-            self.card_groups[group.name] = group
+            if filename.endswith(".json"):
+                filepath = os.path.join(card_group_dir, filename)
+                group = self.load_group_from_json(filepath)
+                self.card_groups[group.name] = group
 
     def load_group_from_json(self, file: str) -> CardGroup:
         """

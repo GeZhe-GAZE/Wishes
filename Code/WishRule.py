@@ -73,8 +73,9 @@ class StarCounterRule(BaseRule):
     def __init__(self, star_probability: Dict[int, int] ,**kwargs):
         """
         星级计数器初始化为 0
-        真实抽数是 计数器值 + 1
-        因此，各类型在使用本规则的计数器时需自加 1
+        由于计数器在回调过程中更新
+        因此，当前实际抽数是 计数器值 + 1
+        故各类型在使用本规则的计数器时需自加 1
         """
         self.counter = {star: 0 for star in star_probability.keys()}
 
