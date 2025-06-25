@@ -67,6 +67,8 @@ class BaseRule(ABC):
 class StarCounterRule(BaseRule):
     """
     星级计数器规则
+    提供每个星级的抽卡计数，计数器会在抽出对应星级后重置
+    所有操作在回调函数中完成
     """
     tag: str = "StarCounterRule"
 
@@ -108,6 +110,8 @@ class StarCounterRule(BaseRule):
 class TypeStarCounterRule(BaseRule):
     """
     基于星级的类型计数器规则
+    提供每个星级下各类型的抽卡计数，计数器会在抽出对应类型后重置
+    所有操作在回调函数中完成
     """
     tag: str = "TypeStarCounterRule"
 
@@ -157,6 +161,8 @@ class TypeStarCounterRule(BaseRule):
 class StarProbabilityRule(BaseRule):
     """
     星级基础概率规则
+    根据当前星级概率权重决定当前抽星级
+    每次回调都会重置概率为基础概率
     """
     tag: str = "StarProbabilityRule"
 
@@ -192,6 +198,7 @@ class StarProbabilityRule(BaseRule):
 class TypeStarProbabilityRule(BaseRule):
     """
     基于星级的类型基础概率规则
+    根据当前星级，和星级对应的类型概率权重决定当前抽类型
     """
     tag: str = "TypeStarProbabilityRule"
 
@@ -225,6 +232,8 @@ class TypeStarProbabilityRule(BaseRule):
 class StarPityRule(BaseRule):
     """
     星级保底规则
+    提供对应星级的保底，若抽卡次数达到阈值，则触发保底，并重置计数器
+    *不同星级的保底触发优先级遵循 star_pity 中设定的星级顺序
     """
     tag: str = "StarPityRule"
 
@@ -257,6 +266,8 @@ class StarPityRule(BaseRule):
 class TypeStarPityRule(BaseRule):
     """
     基于星级的类型保底规则
+    提供对应星级的类型保底，若抽卡次数达到阈值，则触发保底，并重置计数器
+    *不同类型的保底触发优先级遵循 type_pity 中该星级下设定的类型顺序
     """
     tag: str = "TypeStarPityRule"
 
@@ -301,7 +312,9 @@ class TypeStarPityRule(BaseRule):
 
 class UpRule(BaseRule):
     """
-    UP 概率提升规则
+    UP 规则
+    将 UP 卡片设定为拥有显著高于同星级基础概率的抽取出现率的规则
+    同时附带对 UP 卡片的计数器和保底机制
     """
     tag: str = "UpRule"
 
@@ -346,6 +359,8 @@ class UpRule(BaseRule):
 class UpTypeRule(BaseRule):
     """
     UP 类型分布规则
+    在同星级的 UP 卡片内部，支持设定不同类型的 UP 卡片概率权重的规则
+    同时附带基于星级的对 UP 类型的计数器和保底机制
     """
     tag: str = "UpTypeRule"
 
@@ -391,6 +406,8 @@ class UpTypeRule(BaseRule):
 class StarProbabilityIncreaseRule(BaseRule):
     """
     星级概率增长规则
+    在 StarProbabilityRule 的基础上，实现不同星级概率随抽数增加而等差增长的规则
+    *仅当本规则先于 StarProbabilityRule 执行时生效
     """
     tag: str = "StarProbabilityIncreaseRule"
 
@@ -419,6 +436,7 @@ class StarProbabilityIncreaseRule(BaseRule):
                 k = counter - start + 1
                 ctx.parameters[StarProbabilityRule.tag]["star_probability"][star] += k * increment
         
+        # 对概率进行归一化处理，确保概率权重和为 MAX_PROBABILITY
         total = 0
         for star, probability in ctx.parameters[StarProbabilityRule.tag]["star_probability"].items():
             p = max(min(MAX_PROBABILITY - total, probability), 0)
@@ -431,6 +449,7 @@ class StarProbabilityIncreaseRule(BaseRule):
 
 class FesRule(BaseRule):
     """
+    Fes 规则
     在 UP 内部进行二次概率提升的规则
     """
     tag: str = "FesRule"
@@ -450,6 +469,47 @@ class FesRule(BaseRule):
         fes_weight = self.fes_probability[ctx.result.star]
         print(fes_weight, MAX_PROBABILITY - fes_weight)
         ctx.result.is_fes = random.choices((True, False), (fes_weight, MAX_PROBABILITY - fes_weight))[0]
+
+    def callback(self, ctx: RuleContext):
+        pass
+
+
+class AppointRule(BaseRule):
+    """
+    Appoint 规则 (定轨规则)
+    在 UP 内部再次指定 Appoint 卡片，当结果为 UP 且计数器超过 Appoint 阈值时，强制结果为 Appoint 卡片的规则
+    *Appoint 卡片同时也是 UP 卡片
+    *仅当本规则后于 UpRule 执行时生效
+    """
+    tag: str = "AppointRule"
+
+    def __init__(self, appoint_pity: Dict[int, int], **kwargs):
+        self.appoint_pity = appoint_pity
+        self.appoint_counter = {
+            star: 0 
+            for star in self.appoint_pity.keys()
+        }
+    
+    def set_parameters(self, ctx: RuleContext):
+        ctx.parameters[self.tag] = {
+            "appoint_pity": self.appoint_pity,
+            "appoint_counter": self.appoint_counter
+        }
+    
+    def apply(self, ctx: RuleContext):
+        if ctx.result is None or not ctx.result.is_up:
+            return
+
+        star = ctx.result.star
+        if star not in self.appoint_pity:
+            return
+        
+        if self.appoint_counter[star] >= self.appoint_pity[star]:
+            ctx.result.is_appoint = True
+            self.appoint_counter[star] = 0
+            return
+
+        self.appoint_counter[star] += 1
 
     def callback(self, ctx: RuleContext):
         pass
