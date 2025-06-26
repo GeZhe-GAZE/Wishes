@@ -195,3 +195,15 @@ cython_debug/
 
 .vscode/
 Data/
+
+# Test Files
+Code/LocalTest.py
+Code/temp_test.py
+Code/RuleTest.py
+Code/ManageSystemTest.py
+
+# Tool Files
+card_creator.py
+card_operator.py
+group_operator.py
+resident_group_formater.py

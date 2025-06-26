@@ -214,17 +214,19 @@ class CardGroup:
 
     *在 Wishes 中，所有非 TAG_UP, TAG_FES, TAG_APPOINT 标签的卡片均视为 TAG_RESIDENT 标签组
     """
-    def __init__(self, name: str, resident_card_group: SingleTagCardGroup, version: str = "", is_official: bool = False):
+    def __init__(self, name: str, resident_card_group: SingleTagCardGroup | None = None, version: str = "", is_official: bool = False):
         self.name = name                    # 卡组名称
         self.is_official = is_official      # 是否为官方卡组
         self.version = version              # 卡组版本，仅在官方卡组内可用
+
+        resident_card_group = SingleTagCardGroup(self.name + f"-{TAG_RESIDENT}") if not resident_card_group else resident_card_group
         
         # 卡池管理结构
         self.cards: Dict[str, SingleTagCardGroup] = {TAG_RESIDENT: resident_card_group}
         # 最高星级 (最高稀有度)
-        self.max_star = 0
+        self.max_star = resident_card_group.max_star
         # 卡片总数
-        self.count = 0
+        self.count = resident_card_group.count
     
     def __str__(self) -> str:
         cards_info = "\n".join([
@@ -240,27 +242,36 @@ class CardGroup:
             "- cards:",
             cards_info
         ))
+    
+    def add_tag_group(self, tag: str, card_group: SingleTagCardGroup | None = None):
+        """
+        添加标签组
+        """
+        if tag not in self.cards:
+            self.cards[tag] = SingleTagCardGroup(self.name + f"-{tag}") if not card_group else card_group
+            self.max_star = max(self.max_star, self.cards[tag].max_star)
+            self.count += self.cards[tag].count
 
-    def add_up(self):
-        """
-        添加 UP 组
-        """
-        if TAG_UP not in self.cards:
-            self.cards[TAG_UP] = SingleTagCardGroup(self.name + f"-{TAG_UP}")
+    # def add_up(self, up_group: SingleTagCardGroup | None = None):
+    #     """
+    #     添加 UP 组
+    #     """
+    #     if TAG_UP not in self.cards:
+    #         self.cards[TAG_UP] = SingleTagCardGroup(self.name + f"-{TAG_UP}") if not up_group else up_group
     
-    def add_fes(self):
-        """
-        添加 Fes 组
-        """
-        if TAG_FES not in self.cards:
-            self.cards[TAG_FES] = SingleTagCardGroup(self.name + f"-{TAG_FES}")
+    # def add_fes(self, fes_group: SingleTagCardGroup | None = None):
+    #     """
+    #     添加 Fes 组
+    #     """
+    #     if TAG_FES not in self.cards:
+    #         self.cards[TAG_FES] = SingleTagCardGroup(self.name + f"-{TAG_FES}") if not fes_group else fes_group
     
-    def add_appoint(self):
-        """
-        添加 定轨 组
-        """
-        if TAG_APPOINT not in self.cards:
-            self.cards[TAG_APPOINT] = SingleTagCardGroup(self.name + f"-{TAG_APPOINT}")
+    # def add_appoint(self, appoint_group: SingleTagCardGroup | None = None):
+    #     """
+    #     添加 定轨 组
+    #     """
+    #     if TAG_APPOINT not in self.cards:
+    #         self.cards[TAG_APPOINT] = SingleTagCardGroup(self.name + f"-{TAG_APPOINT}") if not appoint_group else appoint_group
     
     def add_type(self, type_: str, tag: str = TAG_RESIDENT):
         """
@@ -345,9 +356,9 @@ class WishResult:
 class LogicResult:
     star: int
     type_: str
-    is_up: bool = False
-    is_fes: bool = False
-    is_appoint: bool = False
+    is_up: bool = False         # UP
+    is_fes: bool = False        # Fes
+    is_appoint: bool = False    # Appoint (定轨)
 
     def __str__(self) -> str:
         return f"LogicResult({self.star}, '{self.type_}', {self.is_up}, {self.is_fes}, {self.is_appoint})"
@@ -357,7 +368,7 @@ if __name__ == '__main__':
     p = SingleTagCardGroup("test-resident")
     print(p)
     g = CardGroup("test", p)
-    g.add_up()
-    g.add_fes()
-    g.add_appoint()
+    g.add_tag_group(TAG_UP)
+    g.add_tag_group(TAG_FES)
+    g.add_tag_group(TAG_APPOINT)
     print(g)

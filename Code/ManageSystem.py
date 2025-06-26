@@ -26,9 +26,9 @@ from typing import Dict, List, Sequence
 class CardSystem:
     """
     卡片管理系统
+    卡片管理层级: 游戏 -> 类型 -> 星级 -> 卡片名称: 卡片对象
     """
     def __init__(self, cards_dir: str, dir_config: Dict[str, Dict[str, Sequence[int]]]):
-        # 卡片管理层级：游戏 -> 类型 -> 星级 -> 卡片名称: 卡片对象
         self.card_container: Dict[str, Dict[str, Dict[int, Dict[str, Card]]]] = {
             game: {
                 type_: {
@@ -147,13 +147,64 @@ class CardSystem:
         return list(self.card_container[game][type_].keys())
 
 
+class ResidentGroupSystem:
+    """
+    常驻卡组管理系统
+    """
+    def __init__(self, card_group_dir: str, card_system: CardSystem):
+        self.card_groups: dict[str, SingleTagCardGroup] = {}
+        self.card_system = card_system
+
+        for filename in os.listdir(card_group_dir):
+            if filename.endswith(".json"):
+                filepath = os.path.join(card_group_dir, filename)
+                group = self.load_group_from_json(filepath)
+                self.card_groups[group.name] = group
+
+    def load_group_from_json(self, file: str) -> SingleTagCardGroup:
+        """
+        从 json 文件中加载常驻卡组
+        """
+        with open(file, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        
+        group = SingleTagCardGroup(config["name"])
+        del config["name"]
+
+        card_info_dicts = (
+            card_info_dict
+            for star_dict in config.values()
+            for card_info_list in star_dict.values()
+            for card_info_dict in card_info_list
+        )
+
+        for card_info_dict in card_info_dicts:
+            if "type" in card_info_dict:
+                card_info_dict["type_"] = card_info_dict["type"]
+                del card_info_dict["type"]
+            card = self.card_system.get_card(**card_info_dict)
+            if card.usable():
+                group.add_card(card)
+        
+        return group
+    
+    def get_group(self, name: str) -> SingleTagCardGroup:
+        """
+        获取指定名称的常驻卡组
+        """
+        if name not in self.card_groups:
+            return SingleTagCardGroup("empty-group")
+        return self.card_groups[name]
+
+
 class CardGroupSystem:
     """
     卡组管理系统
     """
-    def __init__(self, card_group_dir: str, card_system: CardSystem):
+    def __init__(self, card_group_dir: str, card_system: CardSystem, resident_group_system: ResidentGroupSystem):
         self.card_groups: dict[str, CardGroup] = {}
-        self.card_system = card_system
+        self.card_system = card_system                          # 卡片系统
+        self.resident_group_system = resident_group_system      # 常驻卡组管理系统
 
         for filename in os.listdir(card_group_dir):
             if filename.endswith(".json"):
@@ -166,37 +217,44 @@ class CardGroupSystem:
         从 json 文件中加载卡组
         """
         with open(file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        group = CardGroup(data["name"], data["version"], data["is_official"])
+            config = json.load(f)
 
-        # 加载 UP
-        for star in ("Star5", "Star4"):
-            for card_info in data["up"][star]:
-                card_info: str
-                card = self.card_system.get_card(card_info)
-                if card.usable():
-                    group.add_card(card, True)
-                    continue
-                # 卡片不在系统中，尝试从 json 文件加载
-                if card_info.endswith(".json") and os.path.exists(card_info):
-                    group.add_card(Card.load_from_json(card_info), True)
+        group = CardGroup(
+            config["name"],
+            self.resident_group_system.get_group(config[TAG_RESIDENT]),     # 常驻卡组
+            version=config["version"],
+            is_official=config["is_official"]
+        )
 
-        # 加载常驻
-        with open(data["resident"], "r", encoding="utf-8") as f:
-            resident_data = json.load(f)
-        for type_ in (TYPE_ROLE, TYPE_WEAPON):
-            for star in (5, 4, 3):
-                if type_ == TYPE_ROLE and star == 3:
-                    continue
-                for card_info in resident_data[type_][f"Star{star}"]:
-                    card_info: str
-                    card = self.card_system.get_card(card_info)
-                    if card.usable():
-                        group.add_card(card, False)
-                        continue
-                    if card_info.endswith(".json") and os.path.exists(card_info):
-                        group.add_card(Card.load_from_json(card_info), False)
+        # 加载其他卡片 (UP, Fes, Appoint)
+        for tag in (TAG_UP, TAG_FES, TAG_APPOINT):
+            if tag in config:
+                tag_group = self.load_single_group_from_config(config[tag], f"{group.name}-{tag}")
+                group.add_tag_group(tag, tag_group)
 
+        return group
+    
+    def load_single_group_from_config(self, config: Dict[str, Dict[int, List[Dict]]], name: str = "") -> SingleTagCardGroup:
+        """
+        从配置字典中加载单标签卡组
+        """
+        group = SingleTagCardGroup(name)
+
+        cards_info_dicts = (
+            card_info_dict
+            for star_dict in config.values()
+            for card_info_list in star_dict.values()
+            for card_info_dict in card_info_list
+        )
+
+        for card_info_dict in cards_info_dicts:
+            if "type" in card_info_dict:
+                card_info_dict["type_"] = card_info_dict["type"]
+                del card_info_dict["type"]
+            card = self.card_system.get_card(**card_info_dict)
+            if card.usable():
+                group.add_card(card)
+        
         return group
     
     def has_group(self, name: str) -> bool:

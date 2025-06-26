@@ -563,6 +563,8 @@ def tag_to_rule_class(rule_tag: str) -> Type[BaseRule]:
             return StarProbabilityIncreaseRule
         case FesRule.tag:
             return FesRule
+        case AppointRule.tag:
+            return AppointRule
         case _:
             return BaseRule
 
