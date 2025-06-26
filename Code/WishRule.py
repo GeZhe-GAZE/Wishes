@@ -344,13 +344,13 @@ class UpRule(BaseRule):
         
         counter = self.up_counter[ctx.result.star]
         if ctx.result.star in self.up_pity and counter >= self.up_pity[ctx.result.star]:
-            ctx.result.is_up = True
+            ctx.result.tag = TAG_UP
             self.up_counter[ctx.result.star] = 0
         else:
             self.up_counter[ctx.result.star] += 1
 
             up_weight = self.up_probability[ctx.result.star]
-            ctx.result.is_up = random.choices((True, False), (up_weight, MAX_PROBABILITY - up_weight))[0]
+            ctx.result.tag = random.choices((TAG_UP, TAG_RESIDENT), (up_weight, MAX_PROBABILITY - up_weight))[0]
     
     def callback(self, ctx: RuleContext):
         pass
@@ -384,7 +384,7 @@ class UpTypeRule(BaseRule):
         在当前为 UP 的情况下，根据概率权重决定类型
         所有可 UP 类型及对应权重由 up_type_probability 指定
         """
-        if ctx.result is None or ctx.result.star not in self.up_type_probability or not ctx.result.is_up:
+        if ctx.result is None or ctx.result.star not in self.up_type_probability or ctx.result.tag != TAG_UP:
             return
         
         counter = self.up_type_counter[ctx.result.star]
@@ -463,12 +463,12 @@ class FesRule(BaseRule):
         }
     
     def apply(self, ctx: RuleContext):
-        if ctx.result is None or not ctx.result.is_up or ctx.result.star not in self.fes_probability:
+        if ctx.result is None or ctx.result.tag != TAG_UP or ctx.result.star not in self.fes_probability:
             return
         
         fes_weight = self.fes_probability[ctx.result.star]
         print(fes_weight, MAX_PROBABILITY - fes_weight)
-        ctx.result.is_fes = random.choices((True, False), (fes_weight, MAX_PROBABILITY - fes_weight))[0]
+        ctx.result.tag = random.choices((TAG_FES, TAG_UP), (fes_weight, MAX_PROBABILITY - fes_weight))[0]
 
     def callback(self, ctx: RuleContext):
         pass
@@ -497,7 +497,7 @@ class AppointRule(BaseRule):
         }
     
     def apply(self, ctx: RuleContext):
-        if ctx.result is None or not ctx.result.is_up:
+        if ctx.result is None or ctx.result.tag not in (TAG_UP, TAG_FES):
             return
 
         star = ctx.result.star
@@ -505,7 +505,7 @@ class AppointRule(BaseRule):
             return
         
         if self.appoint_counter[star] >= self.appoint_pity[star]:
-            ctx.result.is_appoint = True
+            ctx.result.tag = TAG_APPOINT
             self.appoint_counter[star] = 0
             return
 

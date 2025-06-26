@@ -1,5 +1,12 @@
 # Wishes 🌠
 
+[![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![JSON](https://img.shields.io/badge/Data-JSON-000000?logo=json&logoColor=white)]()
+[![Git](https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white)](https://git-scm.com)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github)](https://github.com)
+[![VSCode](https://img.shields.io/badge/IDE-VSCode-007ACC?logo=visual-studio-code)]()
+
+
 ### 中文
 
 `Wishes` 是一个**高度自定义、高度适配性**的模拟游戏抽卡工具。<br>

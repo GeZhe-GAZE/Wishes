@@ -267,6 +267,8 @@ class CardGroupSystem:
         """
         根据名称获取卡组
         """
+        if name not in self.card_groups:
+            return CardGroup("empty-group")
         return self.card_groups[name]
 
 

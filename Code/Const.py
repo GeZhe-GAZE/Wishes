@@ -32,8 +32,10 @@ GAME_ZZZ = "ZZZ"
 NO_VERSION = "no-version"
 
 # NOTE: 卡组内卡片分类标签
-TAG_UP = "up"
-TAG_FES = "fes"
-TAG_APPOINT = "appoint"
-TAG_RESIDENT = "resident"
+TAG_UP = "up"               # UP 组
+TAG_FES = "fes"             # Fes 组, 包含于 UP 组
+TAG_APPOINT = "appoint"     # Appoint (定轨) 组, 包含于 UP 组和 Fes 组
+TAG_RESIDENT = "resident"   # 常驻组
 
+# NOTE: 记录模块缓存大小
+CACHE_SIZE = 10

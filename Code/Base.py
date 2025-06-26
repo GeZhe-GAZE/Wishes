@@ -78,14 +78,12 @@ class PackedCard:
     """
     对卡片的二次封装，用于在抽卡时使用
     """
-    def __init__(self, card: Card, is_up: bool = False, is_fes: bool = False,is_appoint: bool = False):
+    def __init__(self, card: Card, tag: str = TAG_RESIDENT):
         self.card = card
-        self.is_up = is_up              # 在当前卡组中是否为 UP
-        self.is_fes = is_fes            # 在当前卡组中是否为 Fes
-        self.is_appoint = is_appoint    # 在当前卡组中是否为 定轨
-    
+        self.tag = tag
+
     def __str__(self) -> str:
-        return f"PackedCard({self.card}, {self.is_up}, {self.is_fes}, {self.is_appoint})"
+        return f"PackedCard({self.card}, {self.tag})"
 
 
 class SingleTagCardGroup:
@@ -356,12 +354,10 @@ class WishResult:
 class LogicResult:
     star: int
     type_: str
-    is_up: bool = False         # UP
-    is_fes: bool = False        # Fes
-    is_appoint: bool = False    # Appoint (定轨)
+    tag: str = TAG_RESIDENT     # 卡片标签组
 
     def __str__(self) -> str:
-        return f"LogicResult({self.star}, '{self.type_}', {self.is_up}, {self.is_fes}, {self.is_appoint})"
+        return f"LogicResult({self.star}, '{self.type_}', {self.tag})"
 
 
 if __name__ == '__main__':
