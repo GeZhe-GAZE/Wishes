@@ -18,7 +18,7 @@ from Const import *
 from Base import *
 from CardPool import CardPool
 from WishRecorder import WishRecorder
-from WishLogic import new_logic
+from WishRule import WishLogic
 from WishRule import tag_to_rule_class, WishLogic
 from typing import Dict, List, Sequence
 
@@ -272,99 +272,29 @@ class CardGroupSystem:
         return self.card_groups[name]
 
 
-class CardPoolSystem:
-    """
-    卡池管理系统
-    """
-    def __init__(self, card_pool_dir: str, card_group_system: CardGroupSystem) -> None:
-        self.card_pool_dir = card_pool_dir
-        self.card_pool_group: dict[str, CardPool] = {}
-        self.card_group_system = card_group_system
-
-        for filename in os.listdir(self.card_pool_dir):
-            file = os.path.join(self.card_pool_dir, filename)
-            self.load_card_pool(file)
-    
-    def end(self):
-        """
-        程序退出，通知所有 CardPool
-        """
-        for card_pool in self.card_pool_group.values():
-            card_pool.end()
-            filename = os.path.join(self.card_pool_dir, f"{card_pool.name}.json")
-            with open(filename, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            logic = card_pool.logic
-
-            data["logic_config"]["counter"][STAR_5] = logic.counter[5]
-            data["logic_config"]["counter"][STAR_4] = logic.counter[4]
-            data["logic_config"]["probability"][STAR_5] = logic.probability[5]
-            data["logic_config"]["probability"][STAR_4] = logic.probability[4]
-            data["logic_config"]["next_up"][STAR_5] = logic.next_up[5]
-            data["logic_config"]["next_up"][STAR_4] = logic.next_up[4]
-
-            with open(filename, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=4, ensure_ascii=False)
-    
-    def load_card_pool(self, card_pool_config_file: str):
-        """
-        从卡池配置文件中加载卡池
-        """
-        with open(card_pool_config_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        
-        name = data["name"]
-        logic = new_logic(data["game"], data["type"])
-        card_group_info: str = data["card_group"]
-
-        if self.card_group_system.has_group(card_group_info):
-            card_group = self.card_group_system.get_group(card_group_info)
-        else:
-            if card_group_info.endswith(".json") and os.path.exists(card_group_info):
-                card_group = self.card_group_system.load_group_from_json(card_group_info)
-            else:
-                card_group = CardGroup("")
-        card_group.exclude_same_card()
-
-        logic_config = data["logic_config"]
-        logic.counter[5] = logic_config["counter"][STAR_5]
-        logic.counter[4] = logic_config["counter"][STAR_4]
-        logic.probability[5] = logic_config["probability"][STAR_5]
-        logic.probability[4] = logic_config["probability"][STAR_4]
-        logic.next_up[5] = logic_config["next_up"][STAR_5]
-        logic.next_up[4] = logic_config["next_up"][STAR_4]
-
-        card_pool = CardPool(name, logic, card_group, data["record_dir"])
-        self.card_pool_group[name] = card_pool
-    
-    def has_card_pool(self, name: str) -> bool:
-        """
-        检查是否包含某个卡池
-        """
-        return name in self.card_pool_group.keys()
-    
-    def get_card_pool(self, name: str) -> CardPool:
-        """
-        根据名称获取卡池
-        """
-        return self.card_pool_group[name]
-
-
-class WishRuleSystem:
+class WishLogicSystem:
     """
     抽卡逻辑管理系统
     """
     def __init__(self, rule_config_dir: str) -> None:
         self.dir = rule_config_dir
-        self.logics: Dict[str, WishLogic] = {}
-
-        try: 
-            for filename in os.listdir(self.dir):
+        # 管理层级: 抽卡逻辑名称: 抽卡逻辑对象 (模板原型)
+        self.logics: Dict[str, WishLogic] = self.load_all_logics(rule_config_dir)
+        
+    def load_all_logics(self, rule_config_dir: str) -> Dict[str, WishLogic]:
+        """
+        从指定目录加载所有抽卡逻辑
+        """
+        logics: Dict[str, WishLogic] = {}
+        for filename in os.listdir(rule_config_dir):
+            try:
                 if filename.endswith(".json"):
-                    logic = self.load_logic(os.path.join(self.dir, filename))
-                    self.logics[logic.name] = logic
-        except:
-            pass
+                    logic = self.load_logic(os.path.join(rule_config_dir, filename))
+                    logics[logic.name] = logic
+            except Exception as e:
+                print(f"WishRuleSystem: {filename} 加载失败: {e}")
+        
+        return logics
     
     def load_logic(self, rule_config_file: str) -> WishLogic:
         """
@@ -387,3 +317,59 @@ class WishRuleSystem:
                     del config[key][star_key]
         
         return WishLogic(config)
+    
+    def get_logic(self, name: str) -> WishLogic:
+        """
+        根据名称获取抽卡逻辑实例 (副本)
+        """
+        if name not in self.logics:
+            return WishLogic.none()
+        return self.logics[name]
+
+
+class CardPoolSystem:
+    """
+    卡池管理系统
+    """
+    def __init__(self, card_pool_dir: str, card_group_system: CardGroupSystem, wish_logic_system: WishLogicSystem) -> None:
+        self.card_pool_dir = card_pool_dir
+        # 管理层级: 卡池名称: 卡池对象
+        self.card_pool_group: dict[str, CardPool] = {}
+        self.card_group_system = card_group_system
+        self.wish_logic_system = wish_logic_system
+
+        for filename in os.listdir(self.card_pool_dir):
+            file = os.path.join(self.card_pool_dir, filename)
+            self.load_card_pool(file)
+    
+    def load_card_pool(self, card_pool_config_file: str) -> CardPool:
+        """
+        从卡池配置文件中加载卡池
+        """
+        with open(card_pool_config_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        name = data["name"]
+        card_group = self.card_group_system.get_group(data["card_group"])
+        logic = self.wish_logic_system.get_logic(data["logic"])
+
+        logic_state = data["logic_state"]
+        logic.load_state(logic_state)       # 加载抽卡逻辑状态
+
+        card_pool = CardPool(name, logic, card_group, data["recorder_dir"])
+        self.card_pool_group[name] = card_pool
+
+        return card_pool
+    
+    def has_card_pool(self, name: str) -> bool:
+        """
+        检查是否包含某个卡池
+        """
+        return name in self.card_pool_group.keys()
+    
+    def get_card_pool(self, name: str) -> CardPool:
+        """
+        根据名称获取卡池
+        """
+        return self.card_pool_group.get(name, CardPool.none())
+    

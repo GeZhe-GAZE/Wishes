@@ -16,8 +16,9 @@ _
 
 from Base import *
 from Const import *
-from abc import abstractmethod, ABC
+from abc import ABCMeta, abstractmethod, ABC
 from typing import List, Dict, Type, Tuple, Optional
+from copy import deepcopy
 import random
 
 
@@ -69,6 +70,21 @@ class BaseRule(ABC):
         重置规则状态
         """
         pass
+    
+    @abstractmethod
+    def load_state(self, state: Dict):
+        """
+        从状态字典中加载规则状态
+        状态字典中的星级键使用字符串类型
+        """
+        pass
+    
+    @abstractmethod
+    def reg_state(self, state: Dict):
+        """
+        注册规则状态
+        """
+        pass
 
 
 class StarCounterRule(BaseRule):
@@ -86,42 +102,60 @@ class StarCounterRule(BaseRule):
         因此，当前实际抽数是 计数器值 + 1
         故各类型在使用本规则的计数器时需自加 1
         """
-        self.counter: Dict[int, int] = {
+        self.star_counter: Dict[int, int] = {
             star: 0 
             for star in star_probability.keys()
         }
 
     def set_parameters(self, ctx: RuleContext):
         ctx.parameters[self.tag] = {
-            "counter": self.counter
+            "star_counter": self.star_counter
         }
 
     def apply(self, ctx: RuleContext):
         """
         不操作
         """
-        # for star in self.counter.keys():
-        #     self.counter[star] += 1
-        
-        # if ctx.result and ctx.result.star:
-        #     self.counter[ctx.result.star] = 0
     
     def callback(self, ctx: RuleContext):
         """
         回调中，更新星级计数器
         """
-        for star in self.counter.keys():
-            self.counter[star] += 1
+        for star in self.star_counter.keys():
+            self.star_counter[star] += 1
         
         if ctx.result and ctx.result.star:
-            self.counter[ctx.result.star] = 0
+            self.star_counter[ctx.result.star] = 0
         
     def reset(self, ctx: RuleContext):
         """
         重置星级计数器
         """
-        for star in self.counter.keys():
-            self.counter[star] = 0
+        for star in self.star_counter.keys():
+            self.star_counter[star] = 0
+    
+    def load_state(self, state: Dict):
+        """
+        加载星级计数器状态
+        """
+        if self.tag not in state:
+            return
+        
+        star_counter_state = state[self.tag].get("star_counter", {})
+
+        for star in self.star_counter.keys():
+            self.star_counter[star] = star_counter_state.get(str(star), self.star_counter[star])
+    
+    def reg_state(self, state: Dict):
+        """
+        注册星级计数器状态
+        """
+        state[self.tag] = {
+            "star_counter": {
+                str(star): self.star_counter[star]
+                for star in self.star_counter.keys()
+            }
+        }
 
 
 class TypeStarCounterRule(BaseRule):
@@ -133,7 +167,7 @@ class TypeStarCounterRule(BaseRule):
     tag: str = "TypeStarCounterRule"
 
     def __init__(self, type_probability: Dict[int, Dict[str, int]], **kwargs):
-        self.counter: Dict[int, Dict[str, int]] = {
+        self.type_star_counter: Dict[int, Dict[str, int]] = {
             star: {
                 type_: 0 
                 for type_ in type_probability[star].keys()
@@ -143,47 +177,66 @@ class TypeStarCounterRule(BaseRule):
     
     def set_parameters(self, ctx: RuleContext):
         ctx.parameters[self.tag] = {
-            "counter": self.counter
+            "type_star_counter": self.type_star_counter
         }
     
     def apply(self, ctx: RuleContext):
         """
         不操作
         """
-        # if ctx.result and ctx.result.star in self.counter:
-        #     for type_ in self.counter[ctx.result.star].keys():
-        #         if type_ == ctx.result.type_:
-        #             self.counter[ctx.result.star][type_] = 0
-        #             continue
-        #         self.counter[ctx.result.star][type_] += 1
-
-        # for star in self.counter.keys():
-        #     for type_ in self.counter[star].keys():
-        #         self.counter[star][type_] += 1
-        
-        # if ctx.result and \
-        #    ctx.result.star in self.counter and \
-        #    ctx.result.type_ in self.counter[ctx.result.star]:
-        #     self.counter[ctx.result.star][ctx.result.type_] = 0
     
     def callback(self, ctx: RuleContext):
         """
         回调中，更新类型计数器
         """
-        if ctx.result and ctx.result.star in self.counter:
-            for type_ in self.counter[ctx.result.star].keys():
-                if type_ == ctx.result.type_:
-                    self.counter[ctx.result.star][type_] = 0
-                    continue
-                self.counter[ctx.result.star][type_] += 1
+        if not ctx.result or not ctx.result.star in self.type_star_counter:
+            return
+
+        for type_ in self.type_star_counter[ctx.result.star].keys():
+            if type_ == ctx.result.type_:
+                self.type_star_counter[ctx.result.star][type_] = 0
+                continue
+            self.type_star_counter[ctx.result.star][type_] += 1
     
     def reset(self, ctx: RuleContext):
         """
         重置类型计数器
         """
-        for star in self.counter.keys():
-            for type_ in self.counter[star].keys():
-                self.counter[star][type_] = 0
+        for star in self.type_star_counter.keys():
+            for type_ in self.type_star_counter[star].keys():
+                self.type_star_counter[star][type_] = 0
+    
+    def load_state(self, state: Dict):
+        """
+        加载类型计数器状态
+        """
+        if self.tag not in state:
+            return
+
+        type_star_counter_state = state[self.tag].get("type_star_counter", {})
+
+        for star, type_counter in self.type_star_counter.items():
+            star_string = str(star)
+            if star_string not in type_star_counter_state:
+                continue
+
+            star_state = type_star_counter_state[star_string]
+            for type_ in type_counter.keys():
+                type_counter[type_] = star_state.get(type_, type_counter[type_])
+
+    def reg_state(self, state: Dict):
+        """
+        注册类型计数器状态
+        """
+        state[self.tag] = {
+            "type_star_counter": {
+                str(star): {
+                    type_: self.type_star_counter[star][type_]
+                    for type_ in self.type_star_counter[star].keys()
+                }
+                for star in self.type_star_counter.keys()
+            }
+        }
 
 
 class StarProbabilityRule(BaseRule):
@@ -228,6 +281,18 @@ class StarProbabilityRule(BaseRule):
         """
         self.star_probability = self.base_probability.copy()
         ctx.parameters[self.tag]["star_probability"] = self.star_probability
+    
+    def load_state(self, state: Dict):
+        """
+        不操作
+        *星级概率无需保存
+        """
+    
+    def reg_state(self, state: Dict):
+        """
+        不操作
+        *星级概率无需保存
+        """
 
 
 class TypeStarProbabilityRule(BaseRule):
@@ -266,6 +331,12 @@ class TypeStarProbabilityRule(BaseRule):
     def reset(self, ctx: RuleContext):
         pass
 
+    def load_state(self, state: Dict):
+        pass
+
+    def reg_state(self, state: Dict):
+        pass
+
 
 class StarPityRule(BaseRule):
     """
@@ -289,7 +360,7 @@ class StarPityRule(BaseRule):
         若星级保底被更大的星级保底覆盖，则不会重置保底
         本规则决定的星级优先级大于 StarProbabilityRule
         """
-        star_counter = ctx.parameters[StarCounterRule.tag]["counter"]
+        star_counter = ctx.parameters[StarCounterRule.tag]["star_counter"]
         for star, threshold in self.star_pity.items():
             counter = star_counter.get(star, 0) + 1
             if counter >= threshold:
@@ -301,6 +372,12 @@ class StarPityRule(BaseRule):
         pass
 
     def reset(self, ctx: RuleContext):
+        pass
+
+    def load_state(self, state: Dict):
+        pass
+
+    def reg_state(self, state: Dict):
         pass
 
 
@@ -330,7 +407,7 @@ class TypeStarPityRule(BaseRule):
         if ctx.result is None or not ctx.result.star:
             return
 
-        type_counter = ctx.parameters[TypeStarCounterRule.tag]["counter"]
+        type_counter = ctx.parameters[TypeStarCounterRule.tag]["type_star_counter"]
         # 星级不包含在保底列表内，不操作
         if ctx.result.star not in self.type_pity:
             return
@@ -351,6 +428,12 @@ class TypeStarPityRule(BaseRule):
         pass
 
     def reset(self, ctx: RuleContext):
+        pass
+
+    def load_state(self, state: Dict):
+        pass
+
+    def reg_state(self, state: Dict):
         pass
 
 
@@ -406,6 +489,28 @@ class UpRule(BaseRule):
         self.up_counter = {
             star: 0
             for star in self.up_probability.keys()
+        }
+    
+    def load_state(self, state: Dict):
+        """
+        加载 up_counter 计数器
+        """
+        if self.tag not in state:
+            return
+        
+        up_counter_state = state[self.tag].get("up_counter", {})
+        for star in self.up_counter.keys():
+            self.up_counter[star] = up_counter_state.get(str(star), self.up_counter[star])
+    
+    def reg_state(self, state: Dict):
+        """
+        注册 up_counter 计数器
+        """
+        state[self.tag] = {
+            "up_counter": {
+                str(star): self.up_counter[star]
+                for star in self.up_counter.keys()
+            }
         }
 
 
@@ -466,6 +571,33 @@ class UpTypeRule(BaseRule):
             star: {type_: 0 for type_ in self.up_type_probability[star].keys()}
             for star in self.up_type_probability.keys()
         }
+    
+    def load_state(self, state: Dict):
+        """
+        加载 up_type_counter 计数器
+        """
+        if self.tag not in state:
+            return
+
+        up_type_counter_state = state[self.tag].get("up_type_counter", {})
+
+        for star in self.up_type_counter.keys():
+            for type_ in self.up_type_counter[star].keys():
+                self.up_type_counter[star][type_] = up_type_counter_state.get(str(star), {}).get(type_, self.up_type_counter[star][type_])
+
+    def reg_state(self, state: Dict):
+        """
+        注册 up_type_counter 计数器
+        """
+        state[self.tag] = {
+            "up_type_counter": {
+                str(star): {
+                    type_: self.up_type_counter[star][type_]
+                    for type_ in self.up_type_counter[star].keys()
+                }
+                for star in self.up_type_counter.keys()
+            }
+        }
 
 
 class StarProbabilityIncreaseRule(BaseRule):
@@ -496,7 +628,7 @@ class StarProbabilityIncreaseRule(BaseRule):
         因此本规则只有在先于 StarProbabilityRule 执行时才生效
         """
         for star, (start, increment) in self.star_increase.items():
-            counter = ctx.parameters[StarCounterRule.tag]["counter"].get(star, 0) + 1
+            counter = ctx.parameters[StarCounterRule.tag]["star_counter"].get(star, 0) + 1
             if counter >= start:
                 k = counter - start + 1
                 ctx.parameters[StarProbabilityRule.tag]["star_probability"][star] += k * increment
@@ -512,6 +644,12 @@ class StarProbabilityIncreaseRule(BaseRule):
         pass
 
     def reset(self, ctx: RuleContext):
+        pass
+
+    def load_state(self, state: Dict):
+        pass
+
+    def reg_state(self, state: Dict):
         pass
 
 
@@ -542,6 +680,12 @@ class FesRule(BaseRule):
         pass
 
     def reset(self, ctx: RuleContext):
+        pass
+
+    def load_state(self, state: Dict):
+        pass
+
+    def reg_state(self, state: Dict):
         pass
 
 
@@ -593,6 +737,29 @@ class AppointRule(BaseRule):
             star: 0 
             for star in self.appoint_pity.keys()
         }
+    
+    def load_state(self, state: Dict):
+        """
+        加载 appoint_counter 计数器
+        """
+        if self.tag not in state:
+            return
+        
+        appoint_counter_state = state[self.tag].get("appoint_counter", {})
+
+        for star in self.appoint_pity.keys():
+            self.appoint_counter[star] = appoint_counter_state.get(str(star), self.appoint_counter[star])
+
+    def reg_state(self, state: Dict):
+        """
+        注册 appoint_counter 计数器
+        """
+        state[self.tag] = {
+            "appoint_counter": {
+                str(star): counter 
+                for star, counter in self.appoint_counter.items()
+            }
+        }
 
 
 class WishLogic:
@@ -628,6 +795,38 @@ class WishLogic:
 
         for rule in self.rules:
             rule.reset(self.ctx)
+    
+    def load_state(self, state: Dict):
+        """
+        加载逻辑状态
+        """
+        for rule in self.rules:
+            rule.load_state(state)
+
+    def reg_state(self, state: Dict):
+        """
+        注册逻辑状态
+        """
+        for rule in self.rules:
+            rule.reg_state(state)
+    
+    def copy(self) -> "WishLogic":
+        """
+        创建深拷贝副本
+        """
+        logic = deepcopy(self)
+
+        return logic
+
+    @staticmethod
+    def none() -> "WishLogic":
+        """
+        创建空逻辑
+        """
+        return WishLogic({
+            "name": "None",
+            "rules": []
+        })
         
 
 def tag_to_rule_class(rule_tag: str) -> Type[BaseRule]:

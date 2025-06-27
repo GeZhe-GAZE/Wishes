@@ -73,3 +73,7 @@ class CardPool:
     #     程序退出操作
     #     """
     #     self.recorder._write_file()
+
+    @staticmethod
+    def none() -> 'CardPool':
+        return CardPool("None", WishLogic.none(), CardGroup("empty"), "")
