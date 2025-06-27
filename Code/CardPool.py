@@ -62,6 +62,21 @@ class CardPool:
 
         return result
     
+    def wish_count(self, count: int) -> WishResult:
+        """
+        指定次数抽卡
+        """
+        result = WishResult()
+
+        for _ in range(count):
+            logic_result = self.logic.wish()
+            card = self.card_group.random_card(logic_result.type_, logic_result.star, logic_result.tag)
+            packed_card = PackedCard(card, logic_result.tag)
+            result.add(packed_card)
+            self.recorder.add_record(packed_card)
+
+        return result
+    
     def reset(self, with_records: bool = True):
         """
         重置卡池

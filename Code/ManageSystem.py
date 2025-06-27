@@ -271,6 +271,12 @@ class CardGroupSystem:
             return CardGroup("empty-group")
         return self.card_groups[name]
 
+    def get_card_group_names(self) -> List[str]:
+        """
+        获取所有卡组的名称
+        """
+        return list(self.card_groups.keys())
+
 
 class WishLogicSystem:
     """
@@ -325,6 +331,12 @@ class WishLogicSystem:
         if name not in self.logics:
             return WishLogic.none()
         return self.logics[name]
+
+    def get_logic_names(self) -> List[str]:
+        """
+        获取所有抽卡逻辑的名称
+        """
+        return list(self.logics.keys())
 
 
 class CardPoolSystem:
@@ -393,4 +405,10 @@ class CardPoolSystem:
         if name not in self.card_pool_group:
             return CardPool.none()
         return self.card_pool_group[name]
+    
+    def get_card_pool_names(self) -> List[str]:
+        """
+        获取所有卡池名称
+        """
+        return list(self.card_pool_group.keys())
     
