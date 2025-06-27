@@ -276,10 +276,10 @@ class WishLogicSystem:
     """
     抽卡逻辑管理系统
     """
-    def __init__(self, rule_config_dir: str) -> None:
-        self.dir = rule_config_dir
+    def __init__(self, logic_config_dir: str) -> None:
+        self.dir = logic_config_dir
         # 管理层级: 抽卡逻辑名称: 抽卡逻辑对象 (模板原型)
-        self.logics: Dict[str, WishLogic] = self.load_all_logics(rule_config_dir)
+        self.logics: Dict[str, WishLogic] = self.load_all_logics(logic_config_dir)
         
     def load_all_logics(self, rule_config_dir: str) -> Dict[str, WishLogic]:
         """
@@ -361,6 +361,25 @@ class CardPoolSystem:
 
         return card_pool
     
+    def save_card_pool(self, name: str, file: str):
+        """
+        保存卡池至 json 文件
+        """
+        card_pool = self.get_card_pool(name)
+        if card_pool.none_flag:
+            return
+        
+        data = {
+            "name": card_pool.name,
+            "card_group": card_pool.card_group.name,
+            "logic": card_pool.logic.name,
+            "recorder_dir": card_pool.recorder.dir,
+            "logic_state": card_pool.get_logic_state()
+        }
+
+        with open(file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+    
     def has_card_pool(self, name: str) -> bool:
         """
         检查是否包含某个卡池
@@ -371,5 +390,7 @@ class CardPoolSystem:
         """
         根据名称获取卡池
         """
-        return self.card_pool_group.get(name, CardPool.none())
+        if name not in self.card_pool_group:
+            return CardPool.none()
+        return self.card_pool_group[name]
     

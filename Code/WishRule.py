@@ -474,10 +474,13 @@ class UpRule(BaseRule):
             ctx.result.tag = TAG_UP
             self.up_counter[ctx.result.star] = 0
         else:
-            self.up_counter[ctx.result.star] += 1
-
             up_weight = self.up_probability[ctx.result.star]
             ctx.result.tag = random.choices((TAG_UP, TAG_RESIDENT), (up_weight, MAX_PROBABILITY - up_weight))[0]
+
+            if ctx.result.tag == TAG_UP:
+                self.up_counter[ctx.result.star] = 0
+            else:
+                self.up_counter[ctx.result.star] += 1
     
     def callback(self, ctx: RuleContext):
         pass
@@ -550,16 +553,16 @@ class UpTypeRule(BaseRule):
         
         counter = self.up_type_counter[ctx.result.star]
         for type_ in counter.keys():
-            counter[type_] += 1
-        for type_ in counter.keys():
             if counter[type_] >= self.up_type_pity[ctx.result.star][type_]:
                 ctx.result.type_ = type_
-                return
+                counter[type_] = 0
+                continue
+            counter[type_] += 1
         
         types = tuple(self.up_type_probability[ctx.result.star].keys())
         weights = tuple(self.up_type_probability[ctx.result.star].values())
         ctx.result.type_ = random.choices(types, weights=weights)[0]
-    
+
     def callback(self, ctx: RuleContext):
         pass
 
@@ -673,7 +676,6 @@ class FesRule(BaseRule):
             return
         
         fes_weight = self.fes_probability[ctx.result.star]
-        print(fes_weight, MAX_PROBABILITY - fes_weight)
         ctx.result.tag = random.choices((TAG_FES, TAG_UP), (fes_weight, MAX_PROBABILITY - fes_weight))[0]
 
     def callback(self, ctx: RuleContext):

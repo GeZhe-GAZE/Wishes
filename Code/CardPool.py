@@ -23,7 +23,10 @@ class CardPool:
     卡池类
     集成抽卡逻辑、卡组管理、抽卡记录三部分功能
     """
-    def __init__(self, name: str, logic: WishLogic, card_group: CardGroup, recorder_dir: str) -> None:
+    def __init__(self, name: str, logic: WishLogic, card_group: CardGroup, recorder_dir: str, none_flag: bool = False) -> None:
+        self.none_flag = none_flag
+        if none_flag:
+            return
         self.name = name
         self.logic = logic
         self.card_group = card_group
@@ -68,6 +71,20 @@ class CardPool:
         if with_records:
             self.recorder.clear()
     
+    def get_logic_state(self) -> Dict:
+        """
+        获取当前逻辑状态
+        """
+        state = {}
+        self.logic.reg_state(state)
+        return state
+
+    def set_logic_state(self, state: Dict):
+        """
+        设置逻辑状态
+        """
+        self.logic.load_state(state)
+    
     # def end(self):
     #     """
     #     程序退出操作
@@ -76,4 +93,4 @@ class CardPool:
 
     @staticmethod
     def none() -> 'CardPool':
-        return CardPool("None", WishLogic.none(), CardGroup("empty"), "")
+        return CardPool("None", WishLogic.none(), CardGroup("empty"), "", none_flag=True)
