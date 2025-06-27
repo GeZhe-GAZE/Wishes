@@ -9,12 +9,12 @@ _
 Description
 _
     CardPool 卡池类型定义
-    集成抽卡逻辑、卡组管理和抽卡记录
+    集成 抽卡逻辑、卡组管理 和 抽卡记录 功能
 """
 
 
 from Base import *
-from WishLogic import WishLogic, reset_logic
+from WishRule import WishLogic
 from WishRecorder import WishRecorder
 
 
@@ -27,18 +27,20 @@ class CardPool:
         self.name = name
         self.logic = logic
         self.card_group = card_group
-        self.recorder = WishRecorder(recorder_dir)
+        self.recorder = WishRecorder(recorder_dir, self.card_group.max_star)
 
     def wish_one(self) -> WishResult:
         """
         单抽
         """
-        logic_res = self.logic.wish_one()
         result = WishResult()
 
-        card = self.card_group.random_card(logic_res.is_up, logic_res.star, logic_res.type)
-        result.add(card)
-        self.recorder.add_record(card)
+        logic_result = self.logic.wish()
+
+        card = self.card_group.random_card(logic_result.type_, logic_result.star, logic_result.tag)
+        packed_card = PackedCard(card, logic_result.tag)
+        result.add(packed_card)
+        self.recorder.add_record(packed_card)
 
         return result
     
@@ -49,22 +51,25 @@ class CardPool:
         result = WishResult()
 
         for _ in range(10):
-            logic_res = self.logic.wish_one()
-            card = self.card_group.random_card(logic_res.is_up, logic_res.star, logic_res.type)
-            result.add(card)
-            self.recorder.add_record(card)
+            logic_result = self.logic.wish()
+            card = self.card_group.random_card(logic_result.type_, logic_result.star, logic_result.tag)
+            packed_card = PackedCard(card, logic_result.tag)
+            result.add(packed_card)
+            self.recorder.add_record(packed_card)
 
         return result
     
-    def reset(self):
+    def reset(self, with_records: bool = True):
         """
         重置卡池
+        with_records: 是否重置抽卡记录
         """
-        self.logic = reset_logic(self.logic)
-        self.recorder.clear()
+        self.logic.reset()
+        if with_records:
+            self.recorder.clear()
     
-    def end(self):
-        """
-        程序退出操作
-        """
-        self.recorder._write_file()
+    # def end(self):
+    #     """
+    #     程序退出操作
+    #     """
+    #     self.recorder._write_file()

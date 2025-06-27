@@ -63,6 +63,13 @@ class BaseRule(ABC):
         """
         pass
 
+    @abstractmethod
+    def reset(self, ctx: RuleContext):
+        """
+        重置规则状态
+        """
+        pass
+
 
 class StarCounterRule(BaseRule):
     """
@@ -79,7 +86,10 @@ class StarCounterRule(BaseRule):
         因此，当前实际抽数是 计数器值 + 1
         故各类型在使用本规则的计数器时需自加 1
         """
-        self.counter = {star: 0 for star in star_probability.keys()}
+        self.counter: Dict[int, int] = {
+            star: 0 
+            for star in star_probability.keys()
+        }
 
     def set_parameters(self, ctx: RuleContext):
         ctx.parameters[self.tag] = {
@@ -105,6 +115,13 @@ class StarCounterRule(BaseRule):
         
         if ctx.result and ctx.result.star:
             self.counter[ctx.result.star] = 0
+        
+    def reset(self, ctx: RuleContext):
+        """
+        重置星级计数器
+        """
+        for star in self.counter.keys():
+            self.counter[star] = 0
 
 
 class TypeStarCounterRule(BaseRule):
@@ -116,8 +133,11 @@ class TypeStarCounterRule(BaseRule):
     tag: str = "TypeStarCounterRule"
 
     def __init__(self, type_probability: Dict[int, Dict[str, int]], **kwargs):
-        self.counter = {
-            star: {type_: 0 for type_ in type_probability[star].keys()} 
+        self.counter: Dict[int, Dict[str, int]] = {
+            star: {
+                type_: 0 
+                for type_ in type_probability[star].keys()
+            } 
             for star in type_probability.keys()
         }
     
@@ -156,6 +176,14 @@ class TypeStarCounterRule(BaseRule):
                     self.counter[ctx.result.star][type_] = 0
                     continue
                 self.counter[ctx.result.star][type_] += 1
+    
+    def reset(self, ctx: RuleContext):
+        """
+        重置类型计数器
+        """
+        for star in self.counter.keys():
+            for type_ in self.counter[star].keys():
+                self.counter[star][type_] = 0
 
 
 class StarProbabilityRule(BaseRule):
@@ -190,6 +218,13 @@ class StarProbabilityRule(BaseRule):
     def callback(self, ctx: RuleContext):
         """
         抽卡结束后重置概率
+        """
+        self.star_probability = self.base_probability.copy()
+        ctx.parameters[self.tag]["star_probability"] = self.star_probability
+    
+    def reset(self, ctx: RuleContext):
+        """
+        重置星级概率
         """
         self.star_probability = self.base_probability.copy()
         ctx.parameters[self.tag]["star_probability"] = self.star_probability
@@ -228,6 +263,9 @@ class TypeStarProbabilityRule(BaseRule):
     def callback(self, ctx: RuleContext):
         pass
 
+    def reset(self, ctx: RuleContext):
+        pass
+
 
 class StarPityRule(BaseRule):
     """
@@ -260,6 +298,9 @@ class StarPityRule(BaseRule):
                 return
     
     def callback(self, ctx: RuleContext):
+        pass
+
+    def reset(self, ctx: RuleContext):
         pass
 
 
@@ -309,6 +350,9 @@ class TypeStarPityRule(BaseRule):
     def callback(self, ctx: RuleContext):
         pass
 
+    def reset(self, ctx: RuleContext):
+        pass
+
 
 class UpRule(BaseRule):
     """
@@ -355,6 +399,15 @@ class UpRule(BaseRule):
     def callback(self, ctx: RuleContext):
         pass
 
+    def reset(self, ctx: RuleContext):
+        """
+        重置 up_counter 计数器
+        """
+        self.up_counter = {
+            star: 0
+            for star in self.up_probability.keys()
+        }
+
 
 class UpTypeRule(BaseRule):
     """
@@ -368,7 +421,10 @@ class UpTypeRule(BaseRule):
         self.up_type_probability = up_type_probability
         self.up_type_pity = up_type_pity
         self.up_type_counter = {
-            star: {type_: 0 for type_ in self.up_type_probability[star].keys()}
+            star: {
+                type_: 0
+                for type_ in self.up_type_probability[star].keys()
+            }
             for star in self.up_type_probability.keys()
         }
     
@@ -401,6 +457,15 @@ class UpTypeRule(BaseRule):
     
     def callback(self, ctx: RuleContext):
         pass
+
+    def reset(self, ctx: RuleContext):
+        """
+        重置 up_type_counter 计数器
+        """
+        self.up_type_counter = {
+            star: {type_: 0 for type_ in self.up_type_probability[star].keys()}
+            for star in self.up_type_probability.keys()
+        }
 
 
 class StarProbabilityIncreaseRule(BaseRule):
@@ -446,6 +511,9 @@ class StarProbabilityIncreaseRule(BaseRule):
     def callback(self, ctx: RuleContext):
         pass
 
+    def reset(self, ctx: RuleContext):
+        pass
+
 
 class FesRule(BaseRule):
     """
@@ -471,6 +539,9 @@ class FesRule(BaseRule):
         ctx.result.tag = random.choices((TAG_FES, TAG_UP), (fes_weight, MAX_PROBABILITY - fes_weight))[0]
 
     def callback(self, ctx: RuleContext):
+        pass
+
+    def reset(self, ctx: RuleContext):
         pass
 
 
@@ -514,6 +585,15 @@ class AppointRule(BaseRule):
     def callback(self, ctx: RuleContext):
         pass
 
+    def reset(self, ctx: RuleContext):
+        """
+        重置 appoint_counter 计数器
+        """
+        self.appoint_counter = {
+            star: 0 
+            for star in self.appoint_pity.keys()
+        }
+
 
 class WishLogic:
     """
@@ -539,7 +619,16 @@ class WishLogic:
             rule.callback(self.ctx)     # 逐级回调，执行计数器更新等其他操作
 
         return result
+    
+    def reset(self):
+        """
+        逻辑状态重置
+        """
+        self.ctx.result = None
 
+        for rule in self.rules:
+            rule.reset(self.ctx)
+        
 
 def tag_to_rule_class(rule_tag: str) -> Type[BaseRule]:
     match rule_tag:

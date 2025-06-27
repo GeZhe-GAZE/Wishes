@@ -78,12 +78,13 @@ class PackedCard:
     """
     对卡片的二次封装，用于在抽卡时使用
     """
-    def __init__(self, card: Card, tag: str = TAG_RESIDENT):
-        self.card = card
-        self.tag = tag
+    def __init__(self, card: Card, tag: str = TAG_RESIDENT, rarity: str = ""):
+        self.card = card        # 卡片对象
+        self.tag = tag          # 卡片所属标签组
+        self.rarity = rarity    # 卡片稀有度映射
 
     def __str__(self) -> str:
-        return f"PackedCard({self.card}, {self.tag})"
+        return f"PackedCard({self.card}, {self.tag}, {self.rarity})"
 
 
 class SingleTagCardGroup:
