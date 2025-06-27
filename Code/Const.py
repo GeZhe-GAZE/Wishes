@@ -11,6 +11,9 @@ _
     Wishes 常量定义
 """
 
+# NOTE: Wishes 基本信息
+VERSION = "v3.0.1"
+
 # NOTE: 抽卡部分
 MAX_PROBABILITY = 10000
 
