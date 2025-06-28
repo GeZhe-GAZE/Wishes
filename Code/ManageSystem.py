@@ -231,6 +231,9 @@ class CardGroupSystem:
             if tag in config:
                 tag_group = self.load_single_group_from_config(config[tag], f"{group.name}-{tag}")
                 group.add_tag_group(tag, tag_group)
+        
+        if "exclude" in config:
+            group.set_exclude(config["exclude"])
 
         return group
     

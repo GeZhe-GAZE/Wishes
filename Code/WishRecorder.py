@@ -38,7 +38,7 @@ class CardCache:
         return ",".join((
             str(self.order),
             self.time,
-            self.packed_card.tag,
+            self.packed_card.real_tag,
             card.game,
             card.type,
             str(card.star),
@@ -61,7 +61,7 @@ class IntervalCache:
         card = self.packed_card.card
         return ",".join((
             str(self.counter),
-            self.packed_card.tag,
+            self.packed_card.real_tag,
             card.game,
             card.type,
             str(card.star),
@@ -199,18 +199,18 @@ class WishRecorder:
         self.total_counter += 1
         self.max_star_interval_counter += 1
         
-        if packed_card.tag not in self.counters:
-            self.counters[packed_card.tag] = {}
+        if packed_card.real_tag not in self.counters:
+            self.counters[packed_card.real_tag] = {}
         
         card = packed_card.card
-        if card.type not in self.counters[packed_card.tag]:
-            self.counters[packed_card.tag][card.type] = {}
+        if card.type not in self.counters[packed_card.real_tag]:
+            self.counters[packed_card.real_tag][card.type] = {}
 
         star_string = str(card.star)
-        if star_string not in self.counters[packed_card.tag][card.type]:
-            self.counters[packed_card.tag][card.type][star_string] = 0
+        if star_string not in self.counters[packed_card.real_tag][card.type]:
+            self.counters[packed_card.real_tag][card.type][star_string] = 0
 
-        self.counters[packed_card.tag][card.type][star_string] += 1
+        self.counters[packed_card.real_tag][card.type][star_string] += 1
 
         self.cache_list.append(CardCache(
             self.total_counter,

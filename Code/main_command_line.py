@@ -14,7 +14,7 @@ CARD_POOL_DIR = r"Data/CardPools"
 
 start_message = f"""
 -------------------------------------------------------------
-Wishes {VERSION}
+Wishes {VERSION}    Author: GeZhe-GAZE
 A highly customizable and adaptable gacha simulator for games
 
 Welcome to use!
@@ -119,10 +119,15 @@ class Program:
         print("-" * 20)
 
     def quit(self):
-        if self.current_card_pool and not self.is_saved:
-            m = input("Do you want to save the current card pool first?  你想要先保存当前卡池吗？(Y/N): ")
-            if m.lower() == "y":
-                self.save()
+        while True:
+            if self.current_card_pool and not self.is_saved:
+                m = input("\033[33mDo you want to save the current card pool first?  你想要先保存当前卡池吗？(Y/N): \033[0m")
+                if m.lower() == "y":
+                    self.save()
+                elif m.lower() != "n":
+                    continue
+            break
+
         print("Program exited  程序已退出")
         exit(0)
 
@@ -167,7 +172,7 @@ class Program:
         self.counter += 1
         result = self.current_card_pool.wish_one()
         packed_card = result.get_one()
-        print(f"{self.counter}. {packed_card}")
+        print(f"\033[34m{self.counter}. {packed_card}\033[0m")
 
         self.is_saved = False
 
@@ -179,7 +184,7 @@ class Program:
         result = self.current_card_pool.wish_ten()
         for packed_card in result.cards:
             self.counter += 1
-            print(f"{self.counter}. {packed_card}")
+            print(f"\033[34m{self.counter}. {packed_card}\033[0m")
 
         self.is_saved = False
     
@@ -192,7 +197,7 @@ class Program:
         result = self.current_card_pool.wish_count(count)
         for packed_card in result.cards:
             self.counter += 1
-            print(f"{self.counter}. {packed_card}")
+            print(f"\033[34m{self.counter}. {packed_card}\033[0m")
 
         self.is_saved = False
 

@@ -27,10 +27,13 @@ class RuleContext:
     规则执行上下文
     """
     def __init__(self) -> None:
-        # 当前抽结果
+        # 当前抽逻辑结果
         self.result: Optional[LogicResult] = None
         # 规则参数表，由规则自行管理自身参数，提供对其他规则的参数访问
         self.parameters: Dict[str, Dict] = {}
+
+        # 当前抽实际结果
+        self.packed_card_result: Optional[PackedCard] = None
 
 
 class BaseRule(ABC):
@@ -471,13 +474,14 @@ class UpRule(BaseRule):
         
         counter = self.up_counter[ctx.result.star]
         if ctx.result.star in self.up_pity and counter >= self.up_pity[ctx.result.star]:
-            ctx.result.tag = TAG_UP
+            ctx.result.tags.append(TAG_UP)
             self.up_counter[ctx.result.star] = 0
         else:
             up_weight = self.up_probability[ctx.result.star]
-            ctx.result.tag = random.choices((TAG_UP, TAG_RESIDENT), (up_weight, MAX_PROBABILITY - up_weight))[0]
+            if random.choices((True, False), (up_weight, MAX_PROBABILITY - up_weight))[0]:
+                ctx.result.tags.append(TAG_UP)
 
-            if ctx.result.tag == TAG_UP:
+            if TAG_UP in ctx.result.tags:
                 self.up_counter[ctx.result.star] = 0
             else:
                 self.up_counter[ctx.result.star] += 1
@@ -548,7 +552,7 @@ class UpTypeRule(BaseRule):
         在当前为 UP 的情况下，根据概率权重决定类型
         所有可 UP 类型及对应权重由 up_type_probability 指定
         """
-        if ctx.result is None or ctx.result.star not in self.up_type_probability or ctx.result.tag != TAG_UP:
+        if ctx.result is None or ctx.result.star not in self.up_type_probability or TAG_UP not in ctx.result.tags:
             return
         
         counter = self.up_type_counter[ctx.result.star]
@@ -672,11 +676,12 @@ class FesRule(BaseRule):
         }
     
     def apply(self, ctx: RuleContext):
-        if ctx.result is None or ctx.result.tag != TAG_UP or ctx.result.star not in self.fes_probability:
+        if ctx.result is None or TAG_UP not in ctx.result.tags or ctx.result.star not in self.fes_probability:
             return
         
         fes_weight = self.fes_probability[ctx.result.star]
-        ctx.result.tag = random.choices((TAG_FES, TAG_UP), (fes_weight, MAX_PROBABILITY - fes_weight))[0]
+        if random.choices((True, False), (fes_weight, MAX_PROBABILITY - fes_weight))[0]:
+            ctx.result.tags.append(TAG_FES)
 
     def callback(self, ctx: RuleContext):
         pass
@@ -714,7 +719,10 @@ class AppointRule(BaseRule):
         }
     
     def apply(self, ctx: RuleContext):
-        if ctx.result is None or ctx.result.tag not in (TAG_UP, TAG_FES):
+        """
+        在本抽为 UP 的前提下，检查是否达到 Appoint 阈值，若达到，则强制结果为 Appoint 卡片
+        """
+        if ctx.result is None or TAG_UP not in ctx.result.tags:
             return
 
         star = ctx.result.star
@@ -722,14 +730,24 @@ class AppointRule(BaseRule):
             return
         
         if self.appoint_counter[star] >= self.appoint_pity[star]:
-            ctx.result.tag = TAG_APPOINT
+            ctx.result.tags.append(TAG_APPOINT)
             self.appoint_counter[star] = 0
             return
 
         self.appoint_counter[star] += 1
 
     def callback(self, ctx: RuleContext):
-        pass
+        """
+        检查本抽的卡片是否属于 Appoint 组，如果是，则重置 Appoint 计数器
+        """
+        if ctx.packed_card_result is None or TAG_APPOINT not in ctx.packed_card_result.tags:
+            return
+
+        star = ctx.packed_card_result.card.star
+        if star not in self.appoint_pity:
+            return
+
+        self.appoint_counter[star] = 0
 
     def reset(self, ctx: RuleContext):
         """
@@ -777,17 +795,30 @@ class WishLogic:
             rule.set_parameters(self.ctx)
     
     def wish(self) -> LogicResult:
+        """
+        抽卡
+        """
         self.ctx.result = None
+        self.ctx.packed_card_result = None
 
         for rule in self.rules:
             rule.apply(self.ctx)        # 逐级执行规则，确定抽卡结果
 
         result = self.ctx.result if self.ctx.result else LogicResult(star=0, type_="")
 
-        for rule in self.rules:
-            rule.callback(self.ctx)     # 逐级回调，执行计数器更新等其他操作
+        # for rule in self.rules:
+        #     rule.callback(self.ctx)     # 逐级回调，执行计数器更新等其他操作
 
         return result
+    
+    def callback(self, packed_card: PackedCard):
+        """
+        抽卡结束，回调逻辑
+        """
+        self.ctx.packed_card_result = packed_card
+
+        for rule in self.rules:
+            rule.callback(self.ctx)
     
     def reset(self):
         """

@@ -31,6 +31,29 @@ class CardPool:
         self.logic = logic
         self.card_group = card_group
         self.recorder = WishRecorder(recorder_dir, self.card_group.max_star)
+    
+    def _wish(self) -> PackedCard:
+        """
+        内部使用的单抽逻辑
+        """
+        logic_result = self.logic.wish()
+
+        if TAG_APPOINT in logic_result.tags:
+            tag = TAG_APPOINT
+        elif TAG_FES in logic_result.tags:
+            tag = TAG_FES
+        elif TAG_UP in logic_result.tags:
+            tag = TAG_UP
+        else:
+            tag = TAG_RESIDENT
+
+        packed_card = self.card_group.random_card(logic_result.type_, logic_result.star, tag)
+
+        self.logic.callback(packed_card)
+
+        self.recorder.add_record(packed_card)
+
+        return packed_card
 
     def wish_one(self) -> WishResult:
         """
@@ -38,12 +61,8 @@ class CardPool:
         """
         result = WishResult()
 
-        logic_result = self.logic.wish()
-
-        card = self.card_group.random_card(logic_result.type_, logic_result.star, logic_result.tag)
-        packed_card = PackedCard(card, logic_result.tag)
+        packed_card = self._wish()
         result.add(packed_card)
-        self.recorder.add_record(packed_card)
 
         return result
     
@@ -54,11 +73,8 @@ class CardPool:
         result = WishResult()
 
         for _ in range(10):
-            logic_result = self.logic.wish()
-            card = self.card_group.random_card(logic_result.type_, logic_result.star, logic_result.tag)
-            packed_card = PackedCard(card, logic_result.tag)
+            packed_card = self._wish()
             result.add(packed_card)
-            self.recorder.add_record(packed_card)
 
         return result
     
@@ -69,11 +85,8 @@ class CardPool:
         result = WishResult()
 
         for _ in range(count):
-            logic_result = self.logic.wish()
-            card = self.card_group.random_card(logic_result.type_, logic_result.star, logic_result.tag)
-            packed_card = PackedCard(card, logic_result.tag)
+            packed_card = self._wish()
             result.add(packed_card)
-            self.recorder.add_record(packed_card)
 
         return result
     
