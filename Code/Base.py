@@ -371,7 +371,9 @@ class CardGroup:
         """
         随机抽取一个卡片
         """
-        if tag not in self.single_tag_card_groups or type_ not in self.single_tag_card_groups[tag].types() or star not in self.single_tag_card_groups[tag].stars(type_):
+        if tag not in self.single_tag_card_groups or \
+              type_ not in self.single_tag_card_groups[tag].types() or \
+                  star not in self.single_tag_card_groups[tag].stars(type_):
             return PackedCard(Card.none())
         
         card = self.single_tag_card_groups[tag].random_card(type_, star)

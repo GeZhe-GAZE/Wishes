@@ -22,6 +22,14 @@ from copy import deepcopy
 import random
 
 
+# TODO: 规则配置字典改版:
+# {
+#    "规则tag": {
+#        "配置项": 值,
+#   }
+# }
+
+
 class RuleContext:
     """
     规则执行上下文
@@ -44,6 +52,10 @@ class BaseRule(ABC):
     tag: str = "BaseRule"
 
     def __init__(self, **kwargs):
+        """
+        初始化
+        注意: 传入的配置字典是由 json 直接解析得到的字典, 这意味着所有的键都是字符串类型
+        """
         super().__init__()
     
     @abstractmethod
@@ -98,7 +110,7 @@ class StarCounterRule(BaseRule):
     """
     tag: str = "StarCounterRule"
 
-    def __init__(self, star_probability: Dict[int, int] ,**kwargs):
+    def __init__(self, star_list: List[int] ,**kwargs):
         """
         星级计数器初始化为 0
         由于计数器在回调过程中更新
@@ -107,14 +119,11 @@ class StarCounterRule(BaseRule):
         """
         self.star_counter: Dict[int, int] = {
             star: 0 
-            for star in star_probability.keys()
+            for star in star_list
         }
 
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.rule_bridge[self.tag] = {
-        #     "star_counter": self.star_counter
-        # }
 
     def apply(self, ctx: RuleContext):
         """
@@ -154,12 +163,15 @@ class StarCounterRule(BaseRule):
         """
         注册星级计数器状态
         """
-        state[self.tag] = {
-            "star_counter": {
-                str(star): self.star_counter[star]
-                for star in self.star_counter.keys()
-            }
+        star_counter_state = {
+            str(star): self.star_counter[star]
+            for star in self.star_counter.keys()
         }
+
+        if star_counter_state:
+            state[self.tag] = {
+                "star_counter": star_counter_state
+            }
 
 
 class TypeStarCounterRule(BaseRule):
@@ -170,20 +182,17 @@ class TypeStarCounterRule(BaseRule):
     """
     tag: str = "TypeStarCounterRule"
 
-    def __init__(self, type_probability: Dict[int, Dict[str, int]], **kwargs):
+    def __init__(self, type_star_dict: Dict[str, List[str]], **kwargs):
         self.type_star_counter: Dict[int, Dict[str, int]] = {
-            star: {
+            int(star): {
                 type_: 0 
-                for type_ in type_probability[star].keys()
+                for type_ in type_star_dict[star]
             } 
-            for star in type_probability.keys()
+            for star in type_star_dict.keys()
         }
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "type_star_counter": self.type_star_counter
-        # }
     
     def apply(self, ctx: RuleContext):
         """
@@ -233,15 +242,18 @@ class TypeStarCounterRule(BaseRule):
         """
         注册类型计数器状态
         """
-        state[self.tag] = {
-            "type_star_counter": {
-                str(star): {
-                    type_: self.type_star_counter[star][type_]
-                    for type_ in self.type_star_counter[star].keys()
-                }
-                for star in self.type_star_counter.keys()
+        type_star_counter_state = {
+            str(star): {
+                type_: self.type_star_counter[star][type_]
+                for type_ in self.type_star_counter[star].keys()
             }
+            for star in self.type_star_counter.keys()
         }
+
+        if type_star_counter_state:
+            state[self.tag] = {
+                "type_star_counter": type_star_counter_state
+            }
 
 
 class StarProbabilityRule(BaseRule):
@@ -252,16 +264,15 @@ class StarProbabilityRule(BaseRule):
     """
     tag: str = "StarProbabilityRule"
 
-    def __init__(self, star_probability: Dict[int, int], **kwargs):
-        self.star_probability = star_probability
-        self.base_probability = self.star_probability.copy()
+    def __init__(self, star_probability: Dict[str, int], **kwargs):
+        self.base_probability: Dict[int, int] = {
+            int(star): probability
+            for star, probability in star_probability.items()
+        }
+        self.star_probability: Dict[int, int] = self.base_probability.copy()
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "star_probability": self.star_probability,
-        #     "base_probability": self.base_probability
-        # }
 
     def apply(self, ctx: RuleContext):
         """
@@ -279,14 +290,12 @@ class StarProbabilityRule(BaseRule):
         抽卡结束后重置概率
         """
         self.star_probability = self.base_probability.copy()
-        # ctx.parameters[self.tag]["star_probability"] = self.star_probability
     
     def reset(self, ctx: RuleContext):
         """
         重置星级概率
         """
         self.star_probability = self.base_probability.copy()
-        # ctx.parameters[self.tag]["star_probability"] = self.star_probability
     
     def load_state(self, state: Dict):
         """
@@ -308,14 +317,17 @@ class TypeStarProbabilityRule(BaseRule):
     """
     tag: str = "TypeStarProbabilityRule"
 
-    def __init__(self, type_probability: Dict[int, Dict[str, int]], **kwargs):
-        self.type_probability = type_probability
+    def __init__(self, type_probability: Dict[str, Dict[str, int]], **kwargs):
+        self.type_probability: Dict[int, Dict[str, int]] = {
+            int(star): {
+                type_: probability
+                for type_, probability in type_probability[star].items()
+            }
+            for star in type_probability.keys()
+        }
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "type_probability": self.type_probability
-        # }
 
     def apply(self, ctx: RuleContext):
         """
@@ -353,36 +365,43 @@ class StarPityRule(BaseRule):
     """
     tag: str = "StarPityRule"
 
-    def __init__(self, star_pity: Dict[int, int], **kwargs) -> None:
-        self.star_pity = star_pity
-        self.is_pity: Dict[int, bool] = {    # 当前抽是否触发保底
-            star: False
+    def __init__(self, star_pity: Dict[str, int], **kwargs) -> None:
+        self.star_pity: Dict[int, int] = {
+            int(star): threshold
+            for star, threshold in star_pity.items()
+        }
+        self.is_pity: Dict[int, bool] = {    # 当前抽各星级是否触发保底
+            int(star): False
             for star in self.star_pity.keys()
         }
+        self.reset_lower_pity = False
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "star_pity": self.star_pity
-        # }
     
     def apply(self, ctx: RuleContext):
         """
         检查星级保底，若触发，则按 star_pity 字典中顺序取最先触发保底星级
-        若星级保底被更大的星级保底覆盖，则不会重置保底
+        若 星级保底被更大的星级保底覆盖 且 reset_lower_pity 为 True, 则重置该星级保底
         本规则决定的星级优先级大于 StarProbabilityRule
         """
         for star in self.is_pity.keys():
             self.is_pity[star] = False
 
+        pity_flag = False
+
         star_counter = ctx.rule_bridge[StarCounterRule.tag].star_counter # type: ignore
         for star, threshold in self.star_pity.items():
             counter = star_counter.get(star, 0) + 1
-            if counter >= threshold:
+            if not counter >= threshold:
+                continue
+            if not pity_flag:
                 ctx.result = LogicResult(star=star, type_="")
                 star_counter[star] = 0
                 self.is_pity[star] = True
-                return
+                pity_flag = True
+            elif self.reset_lower_pity:
+                star_counter[star] = 0
     
     def callback(self, ctx: RuleContext):
         pass
@@ -406,12 +425,15 @@ class StarPityRule(BaseRule):
         """
         注册保底状态
         """
-        state[self.tag] = {
-            "is_pity": {
-                str(star): is_pity
-                for star, is_pity in self.is_pity.items()
-            }
+        is_pity_state = {
+            str(star): is_pity
+            for star, is_pity in self.is_pity.items()
         }
+
+        if is_pity_state:
+            state[self.tag] = {
+                "is_pity": is_pity_state
+            }
 
 
 class TypeStarPityRule(BaseRule):
@@ -422,8 +444,14 @@ class TypeStarPityRule(BaseRule):
     """
     tag: str = "TypeStarPityRule"
 
-    def __init__(self, type_pity: Dict[int, Dict[str, int]], **kwargs) -> None:
-        self.type_pity = type_pity
+    def __init__(self, type_pity: Dict[str, Dict[str, int]], **kwargs) -> None:
+        self.type_pity: Dict[int, Dict[str, int]] = {
+            int(star): {
+                type_: threshold
+                for type_, threshold in type_pity[star].items()
+            }
+            for star in type_pity.keys()
+        }
         self.is_pity: Dict[int, Dict[str, bool]] = {    # 当前抽是否触发保底
             star: {
                 type_: False
@@ -434,9 +462,6 @@ class TypeStarPityRule(BaseRule):
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "type_pity": self.type_pity
-        # }
 
     def apply(self, ctx: RuleContext):
         """
@@ -496,15 +521,18 @@ class TypeStarPityRule(BaseRule):
         """
         注册 is_pity 保底状态
         """
-        state[self.tag] = {
-            "is_pity": {
-                str(star): {
-                    type_: is_pity
-                    for type_, is_pity in self.is_pity[star].items()
-                }
-                for star in self.is_pity.keys()
+        is_pity_state = {
+            str(star): {
+                type_: is_pity
+                for type_, is_pity in self.is_pity[star].items()
             }
+            for star in self.is_pity.keys()
         }
+
+        if is_pity_state:
+            state[self.tag] = {
+                "is_pity": is_pity_state
+            }
 
 
 class UpRule(BaseRule):
@@ -515,9 +543,15 @@ class UpRule(BaseRule):
     """
     tag: str = "UpRule"
 
-    def __init__(self, up_probability: Dict[int, int], up_pity: Dict[int, int] ,**kwargs) -> None:
-        self.up_probability = up_probability
-        self.up_pity = up_pity
+    def __init__(self, up_probability: Dict[str, int], up_pity: Dict[str, int] ,**kwargs) -> None:
+        self.up_probability: Dict[int, int] = {
+            int(star): probability
+            for star, probability in up_probability.items()
+        }
+        self.up_pity: Dict[int, int] = {
+            int(star): pity
+            for star, pity in up_pity.items()
+        }
         self.up_counter: Dict[int, int] = {
             star: 0
             for star in self.up_probability.keys()
@@ -529,11 +563,6 @@ class UpRule(BaseRule):
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "up_probability": self.up_probability,
-        #     "up_pity": self.up_pity,
-        #     "up_counter": self.up_counter
-        # }
     
     def apply(self, ctx: RuleContext):
         """
@@ -595,16 +624,23 @@ class UpRule(BaseRule):
         """
         注册 up_counter 计数器和 is_up_pity 保底状态
         """
-        state[self.tag] = {
-            "up_counter": {
-                str(star): self.up_counter[star]
-                for star in self.up_counter.keys()
-            },
-            "is_up_pity": {
-                str(star): self.is_up_pity[star]
-                for star in self.is_up_pity.keys()
-            }
+        up_counter_state = {
+            str(star): self.up_counter[star]
+            for star in self.up_counter.keys()
         }
+        is_up_pity_state = {
+            str(star): self.is_up_pity[star]
+            for star in self.is_up_pity.keys()
+        }
+
+        if up_counter_state or is_up_pity_state:
+            state[self.tag] = {}
+
+            if up_counter_state:
+                state[self.tag]["up_counter"] = up_counter_state
+            
+            if is_up_pity_state:
+                state[self.tag]["is_up_pity"] = is_up_pity_state
 
 
 class UpTypeRule(BaseRule):
@@ -615,15 +651,27 @@ class UpTypeRule(BaseRule):
     """
     tag: str = "UpTypeRule"
 
-    def __init__(self, up_type_probability: Dict[int, Dict[str, int]], up_type_pity: Dict[int, Dict[str, int]], **kwargs):
-        self.up_type_probability = up_type_probability
-        self.up_type_pity = up_type_pity
+    def __init__(self, up_type_probability: Dict[str, Dict[str, int]], up_type_pity: Dict[str, Dict[str, int]], **kwargs):
+        self.up_type_probability: Dict[int, Dict[str, int]] = {
+            int(star): {
+                type_: probability
+                for type_, probability in up_type_probability[star].items()
+            }
+            for star in up_type_probability.keys()
+        }
+        self.up_type_pity: Dict[int, Dict[str, int]] = {
+            int(star): {
+                type_: pity
+                for type_, pity in up_type_pity[star].items()
+            }
+            for star in up_type_pity.keys()
+        }
         self.up_type_counter = {
             star: {
                 type_: 0
-                for type_ in self.up_type_probability[star].keys()
+                for type_ in self.up_type_pity[star].keys()
             }
-            for star in self.up_type_probability.keys()
+            for star in self.up_type_pity.keys()
         }
         self.is_up_type_pity = {
             star: {
@@ -635,11 +683,6 @@ class UpTypeRule(BaseRule):
 
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "up_type_probability": self.up_type_probability,
-        #     "up_type_pity": self.up_type_pity,
-        #     "up_type_counter": self.up_type_counter
-        # }
     
     def apply(self, ctx: RuleContext):
         """
@@ -657,12 +700,13 @@ class UpTypeRule(BaseRule):
         for type_ in counter.keys():
             counter[type_] += 1
 
-        for type_ in counter.keys():
-            if counter[type_] > self.up_type_pity[ctx.result.star][type_]:     # 触发 UP 类型保底
-                ctx.result.type_ = type_
-                counter[type_] = 0
-                self.is_up_type_pity[ctx.result.star][type_] = True
-                return
+        if ctx.result.star in self.up_type_pity:
+            for type_ in counter.keys():
+                if counter[type_] > self.up_type_pity[ctx.result.star][type_]:     # 触发 UP 类型保底
+                    ctx.result.type_ = type_
+                    counter[type_] = 0
+                    self.is_up_type_pity[ctx.result.star][type_] = True
+                    return
         
         types = tuple(self.up_type_probability[ctx.result.star].keys())
         weights = tuple(self.up_type_probability[ctx.result.star].values())
@@ -708,22 +752,29 @@ class UpTypeRule(BaseRule):
         """
         注册 up_type_counter 计数器和 is_up_type_pity 保底状态
         """
-        state[self.tag] = {
-            "up_type_counter": {
-                str(star): {
-                    type_: self.up_type_counter[star][type_]
-                    for type_ in self.up_type_counter[star].keys()
-                }
-                for star in self.up_type_counter.keys()
-            },
-            "is_up_type_pity": {
-                str(star): {
-                    type_: self.is_up_type_pity[star][type_]
-                    for type_ in self.is_up_type_pity[star].keys()
-                }
-                for star in self.is_up_type_pity.keys()
+        up_type_counter_state = {
+            str(star): {
+                type_: self.up_type_counter[star][type_]
+                for type_ in self.up_type_counter[star].keys()
             }
+            for star in self.up_type_counter.keys()
         }
+        is_up_type_pity_state = {
+            str(star): {
+                type_: self.is_up_type_pity[star][type_]
+                for type_ in self.is_up_type_pity[star].keys()
+            }
+            for star in self.is_up_type_pity.keys()
+        }
+
+        if up_type_counter_state or is_up_type_pity_state:
+            state[self.tag] = {}
+
+            if up_type_counter_state:
+                state[self.tag]["up_type_counter"] = up_type_counter_state
+
+            if is_up_type_pity_state:
+                state[self.tag]["is_up_type_pity"] = is_up_type_pity_state
 
 
 class StarProbabilityIncreaseRule(BaseRule):
@@ -734,14 +785,14 @@ class StarProbabilityIncreaseRule(BaseRule):
     """
     tag: str = "StarProbabilityIncreaseRule"
 
-    def __init__(self, star_increase: Dict[int, Tuple[int, int]],**kwargs) -> None:
-        self.star_increase = star_increase
+    def __init__(self, star_increase: Dict[str, Tuple[int, int]],**kwargs) -> None:
+        self.star_increase: Dict[int, Tuple[int, int]] = {
+            int(star): (start, increment)
+            for star, (start, increment) in star_increase.items()
+        }
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "star_increase": self.star_increase
-        # }
     
     def apply(self, ctx: RuleContext):
         """
@@ -789,14 +840,14 @@ class FesRule(BaseRule):
     """
     tag: str = "FesRule"
 
-    def __init__(self, fes_probability: Dict[int, int], **kwargs):
-        self.fes_probability = fes_probability
+    def __init__(self, fes_probability: Dict[str, int], **kwargs):
+        self.fes_probability: Dict[int, int] = {
+            int(star): probability
+            for star, probability in fes_probability.items()
+        }
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "fes_probability": self.fes_probability
-        # }
     
     def apply(self, ctx: RuleContext):
         if ctx.result is None or TAG_UP not in ctx.result.tags or ctx.result.star not in self.fes_probability:
@@ -830,23 +881,22 @@ class AppointRule(BaseRule):
     """
     tag: str = "AppointRule"
 
-    def __init__(self, appoint_pity: Dict[int, int], **kwargs):
-        self.appoint_pity = appoint_pity
-        self.appoint_counter = {
+    def __init__(self, appoint_pity: Dict[str, int], **kwargs):
+        self.appoint_pity: Dict[int, int] = {
+            int(star): pity
+            for star, pity in appoint_pity.items()
+        }
+        self.appoint_counter: Dict[int, int] = {
             star: 0 
             for star in self.appoint_pity.keys()
         }
-        self.is_appoint_pity = {
+        self.is_appoint_pity: Dict[int, bool] = {
             star: False 
             for star in self.appoint_pity.keys()
         }
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "appoint_pity": self.appoint_pity,
-        #     "appoint_counter": self.appoint_counter
-        # }
     
     def apply(self, ctx: RuleContext):
         """
@@ -915,16 +965,23 @@ class AppointRule(BaseRule):
         """
         注册 appoint_counter 计数器和 is_appoint_pity 保底状态
         """
-        state[self.tag] = {
-            "appoint_counter": {
-                str(star): counter 
-                for star, counter in self.appoint_counter.items()
-            },
-            "is_appoint_pity": {
-                str(star): is_appoint_pity 
-                for star, is_appoint_pity in self.is_appoint_pity.items()
-            }
+        appoint_counter_state = {
+            str(star): counter 
+            for star, counter in self.appoint_counter.items()
         }
+        is_appoint_pity_state = {
+            str(star): is_appoint_pity
+            for star, is_appoint_pity in self.is_appoint_pity.items()
+        }
+
+        if appoint_counter_state or is_appoint_pity_state:
+            state[self.tag] = {}
+
+            if appoint_counter_state:
+                state[self.tag]["appoint_counter"] = appoint_counter_state
+
+            if is_appoint_pity_state:
+                state[self.tag]["is_appoint_pity"] = is_appoint_pity_state
 
 
 class CaptureRule(BaseRule):
@@ -937,14 +994,14 @@ class CaptureRule(BaseRule):
     """
     tag: str = "CaptureRule"
 
-    def __init__(self, capture_probability: Dict[int, int], **kwargs):
-        self.capture_probability = capture_probability
+    def __init__(self, capture_probability: Dict[str, int], **kwargs):
+        self.capture_probability: Dict[int, int] = {
+            int(star): probability
+            for star, probability in capture_probability.items()
+        }
 
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "capture_probability": self.capture_probability
-        # }
 
     def apply(self, ctx: RuleContext):
         """
@@ -987,8 +1044,11 @@ class CapturePityRule(BaseRule):
     """
     tag: str = "CapturePityRule"
 
-    def __init__(self, capture_pity: Dict[int, int], **kwargs):
-        self.capture_pity = capture_pity
+    def __init__(self, capture_pity: Dict[str, int], **kwargs):
+        self.capture_pity: Dict[int, int] = {
+            int(star): pity
+            for star, pity in capture_pity.items()
+        }
         self.capture_pity_counter = {
             star: 0 
             for star in self.capture_pity.keys()
@@ -1000,10 +1060,6 @@ class CapturePityRule(BaseRule):
 
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
-        # ctx.parameters[self.tag] = {
-        #     "capture_pity": self.capture_pity,
-        #     "capture_pity_counter": self.capture_pity_counter
-        # }
 
     def apply(self, ctx: RuleContext):
         """
@@ -1078,16 +1134,24 @@ class CapturePityRule(BaseRule):
         """
         注册 capture_pity_counter 捕获保底计数器和 is_capture_pity 保底状态
         """
-        state[self.tag] = {
-            "capture_pity_counter": {
-                str(star): counter 
-                for star, counter in self.capture_pity_counter.items()
-            },
-            "is_capture_pity": {
-                str(star): is_capture 
-                for star, is_capture in self.is_capture_pity.items()
-            }
+        capture_pity_counter_state = {
+            str(star): counter
+            for star, counter in self.capture_pity_counter.items()
         }
+
+        is_capture_pity_state = {
+            str(star): is_capture
+            for star, is_capture in self.is_capture_pity.items()
+        }
+
+        if capture_pity_counter_state or is_capture_pity_state:
+            state[self.tag] = {}
+
+            if capture_pity_counter_state:
+                state[self.tag]["capture_pity_counter"] = capture_pity_counter_state
+
+            if is_capture_pity_state:
+                state[self.tag]["is_capture_pity"] = is_capture_pity_state
 
 
 class WishLogic:
@@ -1095,8 +1159,26 @@ class WishLogic:
     核心逻辑驱动引擎
     """
     def __init__(self, config: Dict) -> None:
+        """
+        config 结构:
+        config: {
+            "name": str,
+            "rules": {
+                "tag": {
+                    "param": value,
+                    ...
+                },
+                ...
+            }
+        }
+        """
         self.name = config["name"] if "name" in config else ""
-        self.rules: List[BaseRule] = [rule_class(**config) for rule_class in config["rules"]]
+
+        rule_config: Dict[str, Dict] = config["rules"]
+        self.rules: List[BaseRule] = [
+            tag_to_rule_class(rule_class_tag)(**rule_class_config)
+            for rule_class_tag, rule_class_config in rule_config.items()
+        ]
 
         self.ctx = RuleContext()
         for rule in self.rules:
@@ -1113,9 +1195,6 @@ class WishLogic:
             rule.apply(self.ctx)        # 逐级执行规则，确定抽卡结果
 
         result = self.ctx.result if self.ctx.result else LogicResult(star=0, type_="")
-
-        # for rule in self.rules:
-        #     rule.callback(self.ctx)     # 逐级回调，执行计数器更新等其他操作
 
         return result
     
@@ -1166,7 +1245,7 @@ class WishLogic:
         """
         return WishLogic({
             "name": "None",
-            "rules": []
+            "rules": {}
         })
         
 

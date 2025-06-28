@@ -301,7 +301,7 @@ class WishLogicSystem:
                     logic = self.load_logic(os.path.join(rule_config_dir, filename))
                     logics[logic.name] = logic
             except Exception as e:
-                print(f"WishRuleSystem: {filename} 加载失败: {e}")
+                print(f"\033[31mWishRuleSystem: {filename} 加载失败: {e}\033[0m")
         
         return logics
     
@@ -312,18 +312,25 @@ class WishLogicSystem:
         with open(rule_config_file, "r", encoding="utf-8") as f:
             config: Dict = json.load(f)
         
-        for key in config.keys():
-            if key == "name":
-                continue
-            if key == "rules":
-                rule_tags: List[str] = config[key]
-                config[key] = [tag_to_rule_class(tag) for tag in rule_tags]
-                continue
-            for star_key in tuple(config[key]):
-                star_key: str
-                if star_key.isdigit():
-                    config[key][int(star_key)] = config[key][star_key]
-                    del config[key][star_key]
+        # 将字典中使用字符串表示的 star 键转换为整数的 star 键
+        # for rule_config in config["rules"].values():
+        #     for star_key in rule_config.keys():
+        #         if star_key.isdigit():
+        #             rule_config[int(star_key)] = rule_config[star_key]
+        #             del rule_config[star_key]
+        
+        # for key in config.keys():
+        #     if key == "name":
+        #         continue
+        #     if key == "rules":
+        #         rule_tags: List[str] = config[key]
+        #         config[key] = [tag_to_rule_class(tag) for tag in rule_tags]
+        #         continue
+        #     for star_key in tuple(config[key]):
+        #         star_key: str
+        #         if star_key.isdigit():
+        #             config[key][int(star_key)] = config[key][star_key]
+        #             del config[key][star_key]
         
         return WishLogic(config)
     

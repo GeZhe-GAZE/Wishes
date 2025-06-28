@@ -2,6 +2,7 @@ from ManageSystem import *
 from Const import *
 from typing import Dict, Callable, Tuple
 import os
+import traceback
 
 
 CARDS_DIR = r"Data/Cards"
@@ -39,6 +40,7 @@ class Program:
         self.resident_group_system = ResidentGroupSystem(RESIDENT_GROUP_DIR, self.card_system)
         self.card_group_system = CardGroupSystem(CARD_GROUP_DIR, self.card_system, self.resident_group_system)
         self.wish_logic_system = WishLogicSystem(LOGIC_CONFIG_DIR)
+        print(self.wish_logic_system.get_logic_names())
         self.card_pool_system = CardPoolSystem(CARD_POOL_DIR, self.card_group_system, self.wish_logic_system)
 
         self.commands: Dict[str, Callable] = {
@@ -53,6 +55,7 @@ class Program:
             "wishten": self.wishten,
             "wishcount": self.wishcount,
             "save": self.save,
+            "reset": self.reset,
         }
 
         self.commands_docs: Dict[str, Tuple[Tuple, str, str]] = {
@@ -67,6 +70,7 @@ class Program:
             "wishten": ((), "Wish ten times", "抽十次"),
             "wishcount": (("count",), "Wish the specified number of times", "抽指定次数"),
             "save": ((), "Save the current card pool", "保存当前卡池"),
+            "reset": ((), "Reset the current card pool", "重置当前卡池"),
         }
 
         self.current_card_pool: CardPool | None = None
@@ -95,8 +99,8 @@ class Program:
 
             try:
                 func(*messages[1:])
-            except Exception as e:
-                self.report_error(str(e))
+            except Exception:
+                self.report_error(traceback.format_exc())
     
     def report_error(self, error_message: str):
         print(f"\033[31mError: {error_message}\033[0m")
@@ -189,10 +193,22 @@ class Program:
         self.is_saved = False
     
     def wishcount(self, count_s: str):
-        count = int(count_s)
         if not self.current_card_pool:
             self.report_error("No card pool is currently selected  当前没有选择卡池")
             return
+        
+        count = int(count_s)
+        if count <= 0:
+            self.report_error("Invalid count 无效次数: <{count}>")
+        if count >= 10000:
+            while True:
+                m = input("\033[33mWarning: The count is too large, do you want to continue?  次数过大，你想要继续吗？(Y/N) \033[0m")
+                if m.lower() == "y":
+                    print("Wishing...  抽卡中...")
+                    break
+                elif m.lower() != "n":
+                    continue
+                return
 
         result = self.current_card_pool.wish_count(count)
         for packed_card in result.cards:
@@ -212,6 +228,33 @@ class Program:
 
         self.is_saved = True
         print(f"Card pool saved  卡池已保存: <{self.current_card_pool.name}>")
+    
+    def reset(self):
+        if not self.current_card_pool:
+            self.report_error("No card pool is currently selected  当前没有选择卡池")
+            return
+        while True:
+            m = input("\033[33mAre you sure you want to reset the current card pool?  你想要重置当前卡池吗？(Y/N) \033[0m")
+            if m.lower() == "y":
+                break
+            elif m.lower() != "n":
+                continue
+            return
+        while True:
+            m = input("\033[33mAnd do you want to clear the records at the same time?  你想要同时清空记录吗？(Y/N) \033[0m")
+            if m.lower() == "y":
+                with_records = True
+                break
+            elif m.lower() != "n":
+                continue
+            with_records = False
+            return
+        self.current_card_pool.reset(with_records)
+        self.counter = 0
+        self.is_saved = False
+        print(f"Card pool reset  卡池已重置: <{self.current_card_pool.name}>")
+        if with_records:
+            print("Records cleared  记录已清空")
 
 
 def main():
