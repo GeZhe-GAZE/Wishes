@@ -47,6 +47,9 @@ class CardSystem:
         加载指定目录下的所有卡片 json 文件为 卡片名称: 卡片对象 键值对并返回
         """
         cards = {}
+        if not os.path.exists(dir_path):
+            return cards
+        
         for filename in os.listdir(dir_path):
             if filename.endswith(".json"):
                 filepath = os.path.join(dir_path, filename)

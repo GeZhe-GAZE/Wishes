@@ -22,14 +22,6 @@ from copy import deepcopy
 import random
 
 
-# TODO: 规则配置字典改版:
-# {
-#    "规则tag": {
-#        "配置项": 值,
-#   }
-# }
-
-
 class RuleContext:
     """
     规则执行上下文
@@ -365,7 +357,7 @@ class StarPityRule(BaseRule):
     """
     tag: str = "StarPityRule"
 
-    def __init__(self, star_pity: Dict[str, int], **kwargs) -> None:
+    def __init__(self, star_pity: Dict[str, int], reset_lower_pity: bool, **kwargs) -> None:
         self.star_pity: Dict[int, int] = {
             int(star): threshold
             for star, threshold in star_pity.items()
@@ -374,7 +366,7 @@ class StarPityRule(BaseRule):
             int(star): False
             for star in self.star_pity.keys()
         }
-        self.reset_lower_pity = False
+        self.reset_lower_pity = reset_lower_pity    # 高星级是否重置低星级保底
     
     def set_bridge(self, ctx: RuleContext):
         ctx.rule_bridge[self.tag] = self
@@ -388,23 +380,28 @@ class StarPityRule(BaseRule):
         for star in self.is_pity.keys():
             self.is_pity[star] = False
 
-        pity_flag = False
-
         star_counter = ctx.rule_bridge[StarCounterRule.tag].star_counter # type: ignore
         for star, threshold in self.star_pity.items():
             counter = star_counter.get(star, 0) + 1
-            if not counter >= threshold:
-                continue
-            if not pity_flag:
+            if counter >= threshold:
                 ctx.result = LogicResult(star=star, type_="")
                 star_counter[star] = 0
                 self.is_pity[star] = True
-                pity_flag = True
-            elif self.reset_lower_pity:
-                star_counter[star] = 0
+                return
     
     def callback(self, ctx: RuleContext):
-        pass
+        """
+        当 reset_lower_pity 为 True 时, 重置低星级保底
+        """
+        if not self.reset_lower_pity or ctx.result is None:
+            return
+        
+        cur_star = ctx.result.star
+
+        star_counter: Dict[int, int] = ctx.rule_bridge[StarCounterRule.tag].star_counter # type: ignore
+        for star in star_counter.keys():
+            if star < cur_star:
+                star_counter[star] = 0
 
     def reset(self, ctx: RuleContext):
         for star in self.is_pity.keys():
@@ -696,11 +693,11 @@ class UpTypeRule(BaseRule):
         if ctx.result is None or ctx.result.star not in self.up_type_probability or TAG_UP not in ctx.result.tags:
             return
         
-        counter = self.up_type_counter[ctx.result.star]
-        for type_ in counter.keys():
-            counter[type_] += 1
-
         if ctx.result.star in self.up_type_pity:
+            counter = self.up_type_counter[ctx.result.star]
+            for type_ in counter.keys():
+                counter[type_] += 1
+
             for type_ in counter.keys():
                 if counter[type_] > self.up_type_pity[ctx.result.star][type_]:     # 触发 UP 类型保底
                     ctx.result.type_ = type_
@@ -780,7 +777,7 @@ class UpTypeRule(BaseRule):
 class StarProbabilityIncreaseRule(BaseRule):
     """
     星级概率增长规则
-    在 StarProbabilityRule 的基础上，实现不同星级概率随抽数增加而等差增长的规则
+    在 StarProbabilityRule 的基础上, 实现星级概率从起始值开始随抽数等差增长的规则
     *仅当本规则先于 StarProbabilityRule 执行时生效
     """
     tag: str = "StarProbabilityIncreaseRule"
@@ -818,6 +815,63 @@ class StarProbabilityIncreaseRule(BaseRule):
             total += p
             ctx.rule_bridge[StarProbabilityRule.tag].star_probability[star] = p # type: ignore
     
+    def callback(self, ctx: RuleContext):
+        pass
+
+    def reset(self, ctx: RuleContext):
+        pass
+
+    def load_state(self, state: Dict):
+        pass
+
+    def reg_state(self, state: Dict):
+        pass
+
+
+class StarProbabilityIntervalIncreaseRule(BaseRule):
+    """
+    星级概率区间增长规则
+    在 StarProbabilityRule 的基础上, 实现星级概率在不同区间内随抽数内等差增长的规则
+    *仅当本规则先于 StarProbabilityRule 执行时生效
+    """
+    tag: str = "StarProbabilityIntervalIncreaseRule"
+
+    def __init__(self, star_increase: Dict[str, List[Tuple[int, int]]], **kwargs) -> None:
+        # 星级 -> (起始抽数, 增长值) 列表
+        self.star_increase: Dict[int, List[Tuple[int, int]]] = {
+            int(star): [
+                    (start, increment) 
+                    for start, increment in intervals
+                ]
+            for star, intervals in star_increase.items()
+        }
+    
+    def set_bridge(self, ctx: RuleContext):
+        ctx.rule_bridge[self.tag] = self
+
+    def apply(self, ctx: RuleContext):
+        """
+        修改 StarProbabilityRule 的概率权重，实现概率增长
+        每个区间的起始概率都是上个区间的结束概率
+        第一个区间的起始概率为 StarProbabilityRule 的基础概率
+        """
+        # 修改概率权重
+        for star, intervals in self.star_increase.items():
+            counter = ctx.rule_bridge[StarCounterRule.tag].star_counter.get(star, 0) + 1 # type: ignore
+            for start, increment in intervals:
+                if counter >= start:
+                    k = counter - start + 1
+                    ctx.rule_bridge[StarProbabilityRule.tag].star_probability[star] += k * increment # type: ignore
+                else:
+                    break
+        
+        # 对概率进行归一化处理，确保概率权重和为 MAX_PROBABILITY
+        total = 0
+        for star, probability in ctx.rule_bridge[StarProbabilityRule.tag].star_probability.items(): # type: ignore
+            p = max(min(MAX_PROBABILITY - total, probability), 0)
+            total += p
+            ctx.rule_bridge[StarProbabilityRule.tag].star_probability[star] = p # type: ignore
+
     def callback(self, ctx: RuleContext):
         pass
 
@@ -1072,6 +1126,7 @@ class CapturePityRule(BaseRule):
             return
 
         if TAG_UP in ctx.result.tags:
+            self.capture_pity_counter[star] = 0     # 触发 UP, 重置计数器
             return
 
         star = ctx.result.star
@@ -1269,6 +1324,8 @@ def tag_to_rule_class(rule_tag: str) -> Type[BaseRule]:
             return UpTypeRule
         case StarProbabilityIncreaseRule.tag:
             return StarProbabilityIncreaseRule
+        case StarProbabilityIntervalIncreaseRule.tag:
+            return StarProbabilityIntervalIncreaseRule
         case FesRule.tag:
             return FesRule
         case AppointRule.tag:

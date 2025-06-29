@@ -5,6 +5,7 @@
 [![Git](https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white)](https://git-scm.com)
 [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github)](https://github.com)
 [![VSCode](https://img.shields.io/badge/IDE-VSCode-007ACC?logo=visual-studio-code)]()
+[![nuitka](https://img.shields.io/badge/Compiler-nuitka-008000?logo=nuitka&logoColor=white)](https://nuitka.net)
 
 
 ### 中文
@@ -21,6 +22,8 @@
 
 
 ### English
+
+    Some of the content is translated using AI tools, and may be not accurate.
 
 `Wishes` is a **highly customizable and adaptable gacha simulator** for games.<br>
 Core features include:

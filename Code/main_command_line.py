@@ -3,14 +3,17 @@ from Const import *
 from typing import Dict, Callable, Tuple
 import os
 import traceback
+import sys
 
 
-CARDS_DIR = r"Data/Cards"
-CARDS_DIR_CONFIG_FILE = r"Data/Config/CardsDirConfig.json"
-RESIDENT_GROUP_DIR = r"Data/ResidentGroups"
-CARD_GROUP_DIR = r"Data/CardGroups"
-LOGIC_CONFIG_DIR = r"Data/LogicConfig"
-CARD_POOL_DIR = r"Data/CardPools"
+PROGRAM_DIR = os.getcwd()
+
+CARDS_DIR = os.path.join(PROGRAM_DIR, r"Data/Cards")
+CARDS_DIR_CONFIG_FILE = os.path.join(PROGRAM_DIR, r"Data/Config/CardsDirConfig.json")
+RESIDENT_GROUP_DIR = os.path.join(PROGRAM_DIR, r"Data/ResidentGroups")
+CARD_GROUP_DIR = os.path.join(PROGRAM_DIR, r"Data/CardGroups")
+LOGIC_CONFIG_DIR =os.path.join(PROGRAM_DIR, r"Data/LogicConfig")
+CARD_POOL_DIR = os.path.join(PROGRAM_DIR, r"Data/CardPools")
 
 
 start_message = f"""
@@ -19,7 +22,7 @@ Wishes {VERSION}    Author: GeZhe-GAZE
 A highly customizable and adaptable gacha simulator for games
 
 Welcome to use!
-Type "help" to get more information.
+Type "help" for more information.
 
 
 这是一个高度自定义、高度适配性的模拟游戏抽卡工具
@@ -40,38 +43,37 @@ class Program:
         self.resident_group_system = ResidentGroupSystem(RESIDENT_GROUP_DIR, self.card_system)
         self.card_group_system = CardGroupSystem(CARD_GROUP_DIR, self.card_system, self.resident_group_system)
         self.wish_logic_system = WishLogicSystem(LOGIC_CONFIG_DIR)
-        print(self.wish_logic_system.get_logic_names())
         self.card_pool_system = CardPoolSystem(CARD_POOL_DIR, self.card_group_system, self.wish_logic_system)
 
-        self.commands: Dict[str, Callable] = {
-            "help": self.help,
-            "quit": self.quit,
-            "cps": self.cps,
-            "cgs": self.cgs,
-            "logics": self.logics,
-            "switch": self.switch,
-            "cgroup": self.cgroup,
-            "wish": self.wish,
-            "wishten": self.wishten,
-            "wishcount": self.wishcount,
-            "save": self.save,
-            "reset": self.reset,
+        self.commands: Dict[str, Tuple[Callable, Tuple, str, str]] = {
+            "help": (self.help, (), "Show help information", "显示帮助信息"),
+            "quit": (self.quit, (), "Quit the program", "退出程序"),
+            "cps": (self.cps, (), "Show all card pools", "显示所有卡池"),
+            "cgs": (self.cgs, (), "Show all card groups", "显示所有卡组"),
+            "logics": (self.logics, (), "Show all wish logics", "显示所有抽卡逻辑"),
+            "switch": (self.switch, ("card_pool_name",), "Switch to the specified card pool", "切换到指定卡池"),
+            "cgroup": (self.cgroup, (), "Show the current card group", "显示当前卡组"),
+            "wish": (self.wish, (), "Wish once", "抽一次"),
+            "wishten": (self.wishten, (), "Wish ten times", "抽十次"),
+            "wishcount": (self.wishcount, ("count",), "Wish the specified number of times", "抽指定次数"),
+            "save": (self.save, (), "Save the current card pool", "保存当前卡池"),
+            "reset": (self.reset, (), "Reset the current card pool", "重置当前卡池"),
         }
 
-        self.commands_docs: Dict[str, Tuple[Tuple, str, str]] = {
-            "help": ((), "Show help information", "显示帮助信息"),
-            "quit": ((), "Quit the program", "退出程序"),
-            "cps": ((), "Show all card pools", "显示所有卡池"),
-            "cgs": ((), "Show all card groups", "显示所有卡组"),
-            "logics": ((), "Show all wish logics", "显示所有抽卡逻辑"),
-            "switch": (("card_pool_name",), "Switch to the specified card pool", "切换到指定卡池"),
-            "cgroup": ((), "Show the current card group", "显示当前卡组"),
-            "wish": ((), "Wish once", "抽一次"),
-            "wishten": ((), "Wish ten times", "抽十次"),
-            "wishcount": (("count",), "Wish the specified number of times", "抽指定次数"),
-            "save": ((), "Save the current card pool", "保存当前卡池"),
-            "reset": ((), "Reset the current card pool", "重置当前卡池"),
-        }
+        # self.commands_docs: Dict[str, Tuple[Tuple, str, str]] = {
+        #     "help": ((), "Show help information", "显示帮助信息"),
+        #     "quit": ((), "Quit the program", "退出程序"),
+        #     "cps": ((), "Show all card pools", "显示所有卡池"),
+        #     "cgs": ((), "Show all card groups", "显示所有卡组"),
+        #     "logics": ((), "Show all wish logics", "显示所有抽卡逻辑"),
+        #     "switch": (("card_pool_name",), "Switch to the specified card pool", "切换到指定卡池"),
+        #     "cgroup": ((), "Show the current card group", "显示当前卡组"),
+        #     "wish": ((), "Wish once", "抽一次"),
+        #     "wishten": ((), "Wish ten times", "抽十次"),
+        #     "wishcount": (("count",), "Wish the specified number of times", "抽指定次数"),
+        #     "save": ((), "Save the current card pool", "保存当前卡池"),
+        #     "reset": ((), "Reset the current card pool", "重置当前卡池"),
+        # }
 
         self.current_card_pool: CardPool | None = None
         self.is_saved = True
@@ -87,12 +89,12 @@ class Program:
 
             command = messages[0]
 
-            func = self.commands.get(command)
+            func = self.commands.get(command, (None,))[0]
             if not func:
                 self.report_error(f"Invalid command 无效命令: <{command}>")
                 continue
 
-            parameters = self.commands_docs[command][0]
+            parameters = self.commands[command][1]
             if len(messages) - 1 != len(parameters):
                 self.report_error(f"Invalid parameters 无效参数: <{command} ({' '.join(parameters)})>")
                 continue
@@ -106,18 +108,18 @@ class Program:
         print(f"\033[31mError: {error_message}\033[0m")
 
     def help(self):
-        max_command_name_length = max(len(command) for command in self.commands_docs)
+        max_command_name_length = max(len(command) for command in self.commands.keys())
 
         max_command_length = max(
             max_command_name_length + len(" ".join(parameters)) + 3    # +3 是括号和空格的长度
-            for (parameters, _, _) in self.commands_docs.values()
+            for (_, parameters, _, _) in self.commands.values()
         )
 
-        max_english_doc_length = max(len(english_doc) for (_, english_doc, _) in self.commands_docs.values())
+        max_english_doc_length = max(len(english_doc) for (_, _, english_doc, _) in self.commands.values())
 
         print("-" * 20 + "\nAll commands 所有命令: \n")
-        for command, info in self.commands_docs.items():
-            parameters, english_doc, chinese_doc = info
+        for command, info in self.commands.items():
+            _, parameters, english_doc, chinese_doc = info
             command_part = f"{command:<{max_command_name_length}}" + f" ({' '.join(parameters)})"
             print(f"{command_part:<{max_command_length}} - {english_doc:<{max_english_doc_length}}  {chinese_doc}")
         print("-" * 20)
@@ -133,7 +135,7 @@ class Program:
             break
 
         print("Program exited  程序已退出")
-        exit(0)
+        sys.exit(0)
 
     def cps(self):
         print("-" * 20 + "\nAll card pools 所有卡池: \n")
@@ -149,8 +151,11 @@ class Program:
     
     def logics(self):
         print("-" * 20 + "\nAll wish logics 所有抽卡逻辑: \n")
+        counter = 1
+        max_number_length = len(str(len(self.wish_logic_system.logics)))
         for logic_name in self.wish_logic_system.get_logic_names():
-            print(logic_name)
+            print(f"{counter:>{max_number_length}}. {logic_name}")
+            counter += 1
         print("-" * 20)
 
     def switch(self, card_pool_name: str):
@@ -211,6 +216,7 @@ class Program:
                 return
 
         result = self.current_card_pool.wish_count(count)
+        print("Wishing is completed, waiting for output...  抽卡已完成，等待输出...")
         for packed_card in result.cards:
             self.counter += 1
             print(f"\033[34m{self.counter}. {packed_card}\033[0m")
@@ -248,7 +254,7 @@ class Program:
             elif m.lower() != "n":
                 continue
             with_records = False
-            return
+            break
         self.current_card_pool.reset(with_records)
         self.counter = 0
         self.is_saved = False
