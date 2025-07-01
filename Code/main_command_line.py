@@ -12,7 +12,7 @@ PROGRAM_DIR = os.getcwd()
 
 CARDS_DIR = os.path.join(PROGRAM_DIR, r"Data/Cards")
 CARDS_DIR_CONFIG_FILE = os.path.join(PROGRAM_DIR, r"Data/Config/CardsDirConfig.json")
-RESIDENT_GROUP_DIR = os.path.join(PROGRAM_DIR, r"Data/ResidentGroups")
+RESIDENT_GROUP_DIR = os.path.join(PROGRAM_DIR, r"Data/StandardGroups")
 CARD_GROUP_DIR = os.path.join(PROGRAM_DIR, r"Data/CardGroups")
 LOGIC_CONFIG_DIR =os.path.join(PROGRAM_DIR, r"Data/LogicConfig")
 CARD_POOL_DIR = os.path.join(PROGRAM_DIR, r"Data/CardPools")
@@ -24,13 +24,13 @@ Wishes {VERSION}    Author: GeZhe-GAZE (歌者GAZE)
 A highly customizable and adaptable gacha simulator for games
 
 Welcome to use!
-Type "help" for more information.
+Type "help" for command documents.
 
 
 这是一个高度自定义、高度适配性的模拟游戏抽卡工具
 
 欢迎使用！
-输入 "help" 获取更多信息。
+输入 "help" 获取命令信息。
 -------------------------------------------------------------
 """
 
@@ -46,8 +46,8 @@ class Program:
 
             # 初始化管理系统
             self.card_system = CardSystem(CARDS_DIR, cards_dir_config)
-            self.resident_group_system = ResidentGroupSystem(RESIDENT_GROUP_DIR, self.card_system)
-            self.card_group_system = CardGroupSystem(CARD_GROUP_DIR, self.card_system, self.resident_group_system)
+            self.standard_group_system = StandardGroupSystem(RESIDENT_GROUP_DIR, self.card_system)
+            self.card_group_system = CardGroupSystem(CARD_GROUP_DIR, self.card_system, self.standard_group_system)
             self.wish_logic_system = WishLogicSystem(LOGIC_CONFIG_DIR)
             self.card_pool_system = CardPoolSystem(CARD_POOL_DIR, self.card_group_system, self.wish_logic_system)
         except:
@@ -70,21 +70,6 @@ class Program:
             "save": (self.save, (), "Save the current card pool", "保存当前卡池"),
             "reset": (self.reset, (), "Reset the current card pool", "重置当前卡池"),
         }
-
-        # self.commands_docs: Dict[str, Tuple[Tuple, str, str]] = {
-        #     "help": ((), "Show help information", "显示帮助信息"),
-        #     "quit": ((), "Quit the program", "退出程序"),
-        #     "cps": ((), "Show all card pools", "显示所有卡池"),
-        #     "cgs": ((), "Show all card groups", "显示所有卡组"),
-        #     "logics": ((), "Show all wish logics", "显示所有抽卡逻辑"),
-        #     "switch": (("card_pool_name",), "Switch to the specified card pool", "切换到指定卡池"),
-        #     "cgroup": ((), "Show the current card group", "显示当前卡组"),
-        #     "wish": ((), "Wish once", "抽一次"),
-        #     "wishten": ((), "Wish ten times", "抽十次"),
-        #     "wishcount": (("count",), "Wish the specified number of times", "抽指定次数"),
-        #     "save": ((), "Save the current card pool", "保存当前卡池"),
-        #     "reset": ((), "Reset the current card pool", "重置当前卡池"),
-        # }
 
         self.current_card_pool: CardPool | None = None
         self.is_saved = True
@@ -150,14 +135,20 @@ class Program:
 
     def cps(self):
         print("-" * 20 + "\nAll card pools 所有卡池: \n")
+        counter = 1
+        max_number_length = len(str(len(self.card_pool_system.get_card_pool_names())))
         for card_pool_name in self.card_pool_system.get_card_pool_names():
-            print(card_pool_name)
+            print(f"{counter:>{max_number_length}}. {card_pool_name}")
+            counter += 1
         print("-" * 20)
     
     def cgs(self):
         print("-" * 20 + "\nAll card groups 所有卡组: \n")
+        counter = 1
+        max_number_length = len(str(len(self.card_group_system.get_card_group_names())))
         for card_group_name in self.card_group_system.get_card_group_names():
-            print(card_group_name)
+            print(f"{counter:>{max_number_length}}. {card_group_name}")
+            counter += 1
         print("-" * 20)
     
     def logics(self):
@@ -181,6 +172,7 @@ class Program:
                 elif m.lower() != "n":
                     continue
                 break
+        self.counter = 0
         self.current_card_pool = self.card_pool_system.get_card_pool(card_pool_name)
         print(f"Switched to the card pool  已切换到卡池: <{card_pool_name}>")
     
@@ -285,54 +277,7 @@ class Program:
 def main():
     program = Program()
     program.mainloop()
-    # with open(CARDS_DIR_CONFIG_FILE, "r", encoding="utf-8") as f:
-    #     cards_dir_config = json.load(f)
 
-    # # 初始化管理系统
-    # card_system = CardSystem(CARDS_DIR, cards_dir_config)
-    # resident_group_system = ResidentGroupSystem(RESIDENT_GROUP_DIR, card_system)
-    # card_group_system = CardGroupSystem(CARD_GROUP_DIR, card_system, resident_group_system)
-    # wish_logic_system = WishLogicSystem(LOGIC_CONFIG_DIR)
-    # card_pool_system = CardPoolSystem(CARD_POOL_DIR, card_group_system, wish_logic_system)
-
-    # card_pool = card_pool_system.get_card_pool("Test")
-    
-    # counter = 0
-
-    # print(start_message)
-
-    # while True:
-    #     counter += 1
-    #     messages = input(">>> ").split()
-    #     if not messages:
-    #         continue
-
-    #     command = messages[0]
-
-    #     if command == "q":
-    #         break
-
-    #     func = commands.get(command)
-    #     if not func:
-    #         print(f"Error: Invalid command 无效命令: <{command}>")
-    #         continue
-    #     func(*messages[1:])
-
-        # result = card_pool.wish_one()
-        # packed_card = result.get_one()
-
-        # print(f"{counter}. {packed_card}")
-        # card = packed_card.card
-        # if card.star == card_pool.card_group.max_star:
-        #     print("*" * 50)
-        #     if packed_card.tag == TAG_UP:
-        #         print("*" * 100)
-        # if card.star == card_pool.card_group.max_star - 1:
-        #     print("-" * 50)
-
-
-
-    # card_pool_system.save_card_pool("Test", CARD_POOL_FILE)
 
 if __name__ == "__main__":
     main()

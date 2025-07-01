@@ -49,7 +49,7 @@ class StarRarityAdapter:
         if str(star) not in self.star_rarity_map[game]:
             return ""
         return self.star_rarity_map[game][str(star)]
-    
+
     def add_rarity(self, game: str, star: int, rarity: str):
         """
         添加 星级-稀有度 映射

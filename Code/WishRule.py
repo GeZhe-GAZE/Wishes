@@ -16,7 +16,7 @@ _
 
 from Base import *
 from Const import *
-from abc import ABCMeta, abstractmethod, ABC
+from abc import abstractmethod, ABC
 from typing import List, Dict, Type, Tuple, Optional
 from copy import deepcopy
 import random
@@ -1238,7 +1238,7 @@ class WishLogic:
         self.ctx = RuleContext()
         for rule in self.rules:
             rule.set_bridge(self.ctx)
-    
+
     def wish(self) -> LogicResult:
         """
         抽卡
@@ -1252,7 +1252,7 @@ class WishLogic:
         result = self.ctx.result if self.ctx.result else LogicResult(star=0, type_="")
 
         return result
-    
+
     def callback(self, packed_card: PackedCard):
         """
         抽卡结束，回调逻辑
@@ -1261,7 +1261,7 @@ class WishLogic:
 
         for rule in self.rules:
             rule.callback(self.ctx)
-    
+
     def reset(self):
         """
         逻辑状态重置
@@ -1270,7 +1270,7 @@ class WishLogic:
 
         for rule in self.rules:
             rule.reset(self.ctx)
-    
+
     def load_state(self, state: Dict):
         """
         加载逻辑状态
@@ -1284,7 +1284,7 @@ class WishLogic:
         """
         for rule in self.rules:
             rule.reg_state(state)
-    
+
     def copy(self) -> "WishLogic":
         """
         创建深拷贝副本
@@ -1302,7 +1302,7 @@ class WishLogic:
             "name": "None",
             "rules": {}
         })
-        
+
 
 def tag_to_rule_class(rule_tag: str) -> Type[BaseRule]:
     match rule_tag:
@@ -1336,6 +1336,7 @@ def tag_to_rule_class(rule_tag: str) -> Type[BaseRule]:
             return CapturePityRule
         case _:
             return BaseRule
+
 
 if __name__ == "__main__":
     pass

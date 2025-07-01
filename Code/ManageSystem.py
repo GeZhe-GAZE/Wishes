@@ -17,9 +17,8 @@ import json
 from Const import *
 from Base import *
 from CardPool import CardPool
-from WishRecorder import WishRecorder
 from WishRule import WishLogic
-from WishRule import tag_to_rule_class, WishLogic
+from WishRule import WishLogic
 from typing import Dict, List, Sequence
 
 
@@ -150,7 +149,7 @@ class CardSystem:
         return list(self.card_container[game][type_].keys())
 
 
-class ResidentGroupSystem:
+class StandardGroupSystem:
     """
     常驻卡组管理系统
     """
@@ -204,10 +203,10 @@ class CardGroupSystem:
     """
     卡组管理系统
     """
-    def __init__(self, card_group_dir: str, card_system: CardSystem, resident_group_system: ResidentGroupSystem):
+    def __init__(self, card_group_dir: str, card_system: CardSystem, standard_group_system: StandardGroupSystem):
         self.card_groups: dict[str, CardGroup] = {}
         self.card_system = card_system                          # 卡片系统
-        self.resident_group_system = resident_group_system      # 常驻卡组管理系统
+        self.standard_group_system = standard_group_system      # 常驻卡组管理系统
 
         for filename in os.listdir(card_group_dir):
             if filename.endswith(".json"):
@@ -224,7 +223,7 @@ class CardGroupSystem:
 
         group = CardGroup(
             config["name"],
-            self.resident_group_system.get_group(config[TAG_RESIDENT]),     # 常驻卡组
+            self.standard_group_system.get_group(config[TAG_STANDARD]),     # 常驻卡组
             version=config["version"],
             is_official=config["is_official"]
         )

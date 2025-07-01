@@ -45,7 +45,7 @@ class CardPool:
         elif TAG_UP in logic_result.tags:
             tag = TAG_UP
         else:
-            tag = TAG_RESIDENT
+            tag = TAG_STANDARD
 
         packed_card = self.card_group.random_card(logic_result.type_, logic_result.star, tag)
 

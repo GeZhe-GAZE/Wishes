@@ -14,7 +14,6 @@ _
 
 
 import json
-import os
 from random import choice
 from Const import *
 from typing import Dict, List
@@ -78,7 +77,7 @@ class PackedCard:
     """
     对卡片的二次封装，用于在抽卡时使用
     """
-    def __init__(self, card: Card, real_tag: str = TAG_RESIDENT, tags: List[str] = [TAG_RESIDENT], rarity: str = ""):
+    def __init__(self, card: Card, real_tag: str = TAG_STANDARD, tags: List[str] = [TAG_STANDARD], rarity: str = ""):
         self.card = card            # 卡片对象
         self.real_tag = real_tag    # 卡片被抽出时，所属的标签组
         self.tags = tags            # 卡片所属的所有标签组
@@ -257,15 +256,15 @@ class CardGroup:
     完整卡组类
     卡池管理结构：
     标签 -> 类型 -> 星级 -> 卡片名称: 卡片对象
-    默认带有 TAG_RESIDENT 标签
+    默认带有 TAG_STANDARD 标签
     可添加 TAG_UP, TAG_FES, TAG_APPOINT 标签
 
-    *在 Wishes 中，所有非 TAG_UP, TAG_FES, TAG_APPOINT 标签的卡片均视为 TAG_RESIDENT 标签组
+    *在 Wishes 中，所有非 TAG_UP, TAG_FES, TAG_APPOINT 标签的卡片均视为 TAG_STANDARD 标签组
     """
     def __init__(
             self, 
             name: str, 
-            resident_card_group: SingleTagCardGroup | None = None, 
+            standard_card_group: SingleTagCardGroup | None = None, 
             version: str = "", 
             is_official: bool = False
             ):
@@ -273,16 +272,15 @@ class CardGroup:
         self.is_official = is_official          # 是否为官方卡组
         self.version = version                  # 卡组版本，仅在官方卡组内可用
 
-        resident_card_group = SingleTagCardGroup(self.name + f"-{TAG_RESIDENT}") if not resident_card_group else resident_card_group
+        standard_card_group = SingleTagCardGroup(self.name + f"-{TAG_STANDARD}") \
+                                if not standard_card_group else standard_card_group
         
         # 卡池管理结构
-        self.single_tag_card_groups: Dict[str, SingleTagCardGroup] = {TAG_RESIDENT: resident_card_group}
+        self.single_tag_card_groups: Dict[str, SingleTagCardGroup] = {TAG_STANDARD: standard_card_group}
         # 最高星级 (最高稀有度)
-        self.max_star = resident_card_group.max_star
+        self.max_star = standard_card_group.max_star
         # 卡片总数
-        self.count = resident_card_group.count
-
-
+        self.count = standard_card_group.count
     
     def __str__(self) -> str:
         cards_info = "\n".join([
@@ -308,28 +306,7 @@ class CardGroup:
             self.max_star = max(self.max_star, self.single_tag_card_groups[tag].max_star)
             self.count += self.single_tag_card_groups[tag].count
 
-    # def add_up(self, up_group: SingleTagCardGroup | None = None):
-    #     """
-    #     添加 UP 组
-    #     """
-    #     if TAG_UP not in self.cards:
-    #         self.cards[TAG_UP] = SingleTagCardGroup(self.name + f"-{TAG_UP}") if not up_group else up_group
-    
-    # def add_fes(self, fes_group: SingleTagCardGroup | None = None):
-    #     """
-    #     添加 Fes 组
-    #     """
-    #     if TAG_FES not in self.cards:
-    #         self.cards[TAG_FES] = SingleTagCardGroup(self.name + f"-{TAG_FES}") if not fes_group else fes_group
-    
-    # def add_appoint(self, appoint_group: SingleTagCardGroup | None = None):
-    #     """
-    #     添加 定轨 组
-    #     """
-    #     if TAG_APPOINT not in self.cards:
-    #         self.cards[TAG_APPOINT] = SingleTagCardGroup(self.name + f"-{TAG_APPOINT}") if not appoint_group else appoint_group
-    
-    def add_type(self, type_: str, tag: str = TAG_RESIDENT):
+    def add_type(self, type_: str, tag: str = TAG_STANDARD):
         """
         在指定组中添加卡片类型
         """
@@ -338,7 +315,7 @@ class CardGroup:
         if type_ not in self.single_tag_card_groups[tag].types():
             self.single_tag_card_groups[tag].add_type(type_)
 
-    def add_star(self, type_: str, star: int, tag: str = TAG_RESIDENT):
+    def add_star(self, type_: str, star: int, tag: str = TAG_STANDARD):
         """
         在指定组的类型组中添加星级
         """
@@ -350,7 +327,7 @@ class CardGroup:
             self.single_tag_card_groups[tag].add_star(type_, star)
             self.max_star = max(self.max_star, star)
     
-    def add_card(self, card: Card, tag: str = TAG_RESIDENT):
+    def add_card(self, card: Card, tag: str = TAG_STANDARD):
         """
         添加卡片到指定组
         """
@@ -367,7 +344,7 @@ class CardGroup:
             self.count += 1
             self.max_star = max(self.max_star, card.star)
 
-    def random_card(self, type_: str, star: int, tag: str = TAG_RESIDENT) -> PackedCard:
+    def random_card(self, type_: str, star: int, tag: str = TAG_STANDARD) -> PackedCard:
         """
         随机抽取一个卡片
         """
@@ -395,7 +372,7 @@ class CardGroup:
 
         return PackedCard(card, tag, tags)
 
-    def remove_card(self, type_: str, star: int, content: str, tag: str = TAG_RESIDENT):
+    def remove_card(self, type_: str, star: int, content: str, tag: str = TAG_STANDARD):
         """
         删除卡片
         """
@@ -413,7 +390,7 @@ class CardGroup:
         设置是否启用卡组排除
         将优先卡组中的卡片在次优先卡组中标记为排除卡片 (保证优先卡组中的卡片不会在次优先卡组中抽取到)
         不同标签的卡组优先级如下：
-        Fes > UP > Resident
+        Fes > UP > Standard
         Appoint 组不参与排除
         """
         if not usable:
@@ -426,7 +403,7 @@ class CardGroup:
         PRIORITY_HIERARCHY = [
             TAG_FES,
             TAG_UP,
-            TAG_RESIDENT,
+            TAG_STANDARD,
         ]
 
         # 收集所有需操作的存在卡池
@@ -440,24 +417,6 @@ class CardGroup:
             for lower_group in existing_groups[i + 1:]:
                 for card in higher_group.all_cards():
                     lower_group.add_exclude_card(card)
-
-        # if TAG_FES in self.single_tag_card_groups:
-        #     targets: List[SingleTagCardGroup] = []
-        #     if TAG_UP in self.single_tag_card_groups:
-        #         targets.append(self.single_tag_card_groups[TAG_UP])
-        #     if TAG_RESIDENT in self.single_tag_card_groups:
-        #         targets.append(self.single_tag_card_groups[TAG_RESIDENT])
-            
-        #     for target in targets:
-        #         for card in self.single_tag_card_groups[TAG_FES].all_cards():
-        #             target.add_exclude_card(card)
-
-        # if TAG_UP in self.single_tag_card_groups:
-        #     if TAG_RESIDENT not in self.single_tag_card_groups:
-        #         return
-
-        #     for card in self.single_tag_card_groups[TAG_UP].all_cards():
-        #         self.single_tag_card_groups[TAG_RESIDENT].add_exclude_card(card)
 
 
 class WishResult:
@@ -482,14 +441,14 @@ class WishResult:
 class LogicResult:
     star: int
     type_: str
-    tags: List[str] = field(default_factory=lambda: [TAG_RESIDENT])     # 卡片标签组 (卡片可同时属于多个标签组，但不同标签组之间有优先级)
+    tags: List[str] = field(default_factory=lambda: [TAG_STANDARD])     # 卡片标签组 (卡片可同时属于多个标签组，但不同标签组之间有优先级)
 
     def __str__(self) -> str:
         return f"LogicResult({self.star}, '{self.type_}', {self.tags})"
 
 
 if __name__ == '__main__':
-    p = SingleTagCardGroup("test-resident")
+    p = SingleTagCardGroup("test-standard")
     print(p)
     g = CardGroup("test", p)
     g.add_tag_group(TAG_UP)
