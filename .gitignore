@@ -210,3 +210,8 @@ card_creator.py
 card_operator.py
 group_operator.py
 resident_group_formater.py
+replace_str_file.py
+
+# Other Files
+build_command.txt
+publish.md

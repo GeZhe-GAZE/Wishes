@@ -388,7 +388,7 @@ class CardPoolSystem:
     
     def save_card_pool(self, name: str, file: str):
         """
-        保存卡池至 json 文件
+        保存卡池至 json 文件, 同时将卡池现有缓存抽卡记录写入文件
         """
         card_pool = self.get_card_pool(name)
         if card_pool.none_flag:
@@ -404,6 +404,8 @@ class CardPoolSystem:
 
         with open(file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
+        
+        card_pool.recorder._write_file()
     
     def has_card_pool(self, name: str) -> bool:
         """

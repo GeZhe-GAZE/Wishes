@@ -4,6 +4,8 @@ from typing import Dict, Callable, Tuple
 import os
 import traceback
 import sys
+import colorama
+from colorama import Fore, Style
 
 
 PROGRAM_DIR = os.getcwd()
@@ -18,7 +20,7 @@ CARD_POOL_DIR = os.path.join(PROGRAM_DIR, r"Data/CardPools")
 
 start_message = f"""
 -------------------------------------------------------------
-Wishes {VERSION}    Author: GeZhe-GAZE
+Wishes {VERSION}    Author: GeZhe-GAZE (歌者GAZE)
 A highly customizable and adaptable gacha simulator for games
 
 Welcome to use!
@@ -35,15 +37,24 @@ Type "help" for more information.
 
 class Program:
     def __init__(self):
-        with open(CARDS_DIR_CONFIG_FILE, "r", encoding="utf-8") as f:
-            cards_dir_config = json.load(f)
+        # 初始化 colorama
+        colorama.init()
 
-        # 初始化管理系统
-        self.card_system = CardSystem(CARDS_DIR, cards_dir_config)
-        self.resident_group_system = ResidentGroupSystem(RESIDENT_GROUP_DIR, self.card_system)
-        self.card_group_system = CardGroupSystem(CARD_GROUP_DIR, self.card_system, self.resident_group_system)
-        self.wish_logic_system = WishLogicSystem(LOGIC_CONFIG_DIR)
-        self.card_pool_system = CardPoolSystem(CARD_POOL_DIR, self.card_group_system, self.wish_logic_system)
+        try:
+            with open(CARDS_DIR_CONFIG_FILE, "r", encoding="utf-8") as f:
+                cards_dir_config = json.load(f)
+
+            # 初始化管理系统
+            self.card_system = CardSystem(CARDS_DIR, cards_dir_config)
+            self.resident_group_system = ResidentGroupSystem(RESIDENT_GROUP_DIR, self.card_system)
+            self.card_group_system = CardGroupSystem(CARD_GROUP_DIR, self.card_system, self.resident_group_system)
+            self.wish_logic_system = WishLogicSystem(LOGIC_CONFIG_DIR)
+            self.card_pool_system = CardPoolSystem(CARD_POOL_DIR, self.card_group_system, self.wish_logic_system)
+        except:
+            print(Fore.RED + "Initialization Error: " + traceback.format_exc())
+            print("Error initializing the program. Please check the configuration files.  初始化程序错误，请检查配置文件。")
+            input("Press Enter to exit.  按回车键退出。" + Style.RESET_ALL)
+            sys.exit(1)
 
         self.commands: Dict[str, Tuple[Callable, Tuple, str, str]] = {
             "help": (self.help, (), "Show help information", "显示帮助信息"),
@@ -105,7 +116,7 @@ class Program:
                 self.report_error(traceback.format_exc())
     
     def report_error(self, error_message: str):
-        print(f"\033[31mError: {error_message}\033[0m")
+        print(Fore.RED + f"Error: {error_message}" + Style.RESET_ALL)
 
     def help(self):
         max_command_name_length = max(len(command) for command in self.commands.keys())
@@ -127,7 +138,7 @@ class Program:
     def quit(self):
         while True:
             if self.current_card_pool and not self.is_saved:
-                m = input("\033[33mDo you want to save the current card pool first?  你想要先保存当前卡池吗？(Y/N): \033[0m")
+                m = input(Fore.YELLOW + "Do you want to save the current card pool first?  你想要先保存当前卡池吗？(Y/N): " + Style.RESET_ALL)
                 if m.lower() == "y":
                     self.save()
                 elif m.lower() != "n":
@@ -162,6 +173,14 @@ class Program:
         if card_pool_name not in self.card_pool_system.get_card_pool_names():
             self.report_error(f"The card pool does not exist  该卡池不存在: <{card_pool_name}>")
             return
+        if not self.is_saved:
+            while True:
+                m = input(Fore.YELLOW + "Do you want to save the current card pool first?  你想要先保存原先卡池吗？(Y/N): " + Style.RESET_ALL)
+                if m.lower() == "y":
+                    self.save()
+                elif m.lower() != "n":
+                    continue
+                break
         self.current_card_pool = self.card_pool_system.get_card_pool(card_pool_name)
         print(f"Switched to the card pool  已切换到卡池: <{card_pool_name}>")
     
@@ -181,7 +200,7 @@ class Program:
         self.counter += 1
         result = self.current_card_pool.wish_one()
         packed_card = result.get_one()
-        print(f"\033[34m{self.counter}. {packed_card}\033[0m")
+        print(Fore.BLUE + f"{self.counter}. {packed_card}" + Style.RESET_ALL)
 
         self.is_saved = False
 
@@ -193,7 +212,7 @@ class Program:
         result = self.current_card_pool.wish_ten()
         for packed_card in result.cards:
             self.counter += 1
-            print(f"\033[34m{self.counter}. {packed_card}\033[0m")
+            print(Fore.BLUE + f"{self.counter}. {packed_card}" + Style.RESET_ALL)
 
         self.is_saved = False
     
@@ -207,7 +226,7 @@ class Program:
             self.report_error("Invalid count 无效次数: <{count}>")
         if count >= 10000:
             while True:
-                m = input("\033[33mWarning: The count is too large, do you want to continue?  次数过大，你想要继续吗？(Y/N) \033[0m")
+                m = input(Fore.YELLOW + "Warning: The count is too large, do you want to continue?  次数过大，你想要继续吗？(Y/N) " + Style.RESET_ALL)
                 if m.lower() == "y":
                     print("Wishing...  抽卡中...")
                     break
@@ -219,7 +238,7 @@ class Program:
         print("Wishing is completed, waiting for output...  抽卡已完成，等待输出...")
         for packed_card in result.cards:
             self.counter += 1
-            print(f"\033[34m{self.counter}. {packed_card}\033[0m")
+            print(Fore.BLUE + f"{self.counter}. {packed_card}" + Style.RESET_ALL)
 
         self.is_saved = False
 
@@ -240,14 +259,14 @@ class Program:
             self.report_error("No card pool is currently selected  当前没有选择卡池")
             return
         while True:
-            m = input("\033[33mAre you sure you want to reset the current card pool?  你想要重置当前卡池吗？(Y/N) \033[0m")
+            m = input(Fore.YELLOW + "Are you sure you want to reset the current card pool?  你想要重置当前卡池吗？(Y/N) " + Style.RESET_ALL)
             if m.lower() == "y":
                 break
             elif m.lower() != "n":
                 continue
             return
         while True:
-            m = input("\033[33mAnd do you want to clear the records at the same time?  你想要同时清空记录吗？(Y/N) \033[0m")
+            m = input(Fore.YELLOW +"And do you want to clear the records at the same time?  你想要同时清空记录吗？(Y/N) " + Style.RESET_ALL)
             if m.lower() == "y":
                 with_records = True
                 break

@@ -4,7 +4,7 @@
 [![JSON](https://img.shields.io/badge/Data-JSON-000000?logo=json&logoColor=white)]()
 [![Git](https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white)](https://git-scm.com)
 [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github)](https://github.com)
-[![VSCode](https://img.shields.io/badge/IDE-VSCode-007ACC?logo=visual-studio-code)]()
+[![VSCode](https://img.shields.io/badge/IDE-VSCode-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![nuitka](https://img.shields.io/badge/Compiler-nuitka-008000?logo=nuitka&logoColor=white)](https://nuitka.net)
 
 
@@ -18,12 +18,13 @@
 - 自定义卡池和管理卡池/卡组/卡片的功能
 
 以 [Python](https://www.python.org/)`3.13` 作为主要开发语言。<br>
-项目目前正处于**底层开发阶段**，仅可在命令行中测试并运行，后续将引入 [Qt6](https://www.qt.io/) 及使用 `Qt Quick` 开发的图形界面。<br>
+项目目前正处于**底层开发阶段**，仅可在命令行中测试并运行，后续将引入 [Qt6](https://www.qt.io/) 及使用 `Qt Quick` 开发的图形界面。
 
+---
 
 ### English
 
-    Some of the content is translated using AI tools, and may be not accurate.
+**Note**: Some of the content is translated using AI tools, and may be not accurate.
 
 `Wishes` is a **highly customizable and adaptable gacha simulator** for games.<br>
 Core features include:
