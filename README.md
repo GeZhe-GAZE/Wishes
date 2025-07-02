@@ -465,7 +465,7 @@ python main_command_line.py
     }
 }
 ```
-**注意**: **"logic_state"**为自动创建
+**注意**: `logic_state`为自动创建
 
 ---
 
