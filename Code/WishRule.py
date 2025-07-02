@@ -1124,25 +1124,58 @@ class CapturePityRule(BaseRule):
 
         if ctx.result is None:
             return
-
-        if TAG_UP in ctx.result.tags:
-            self.capture_pity_counter[star] = 0     # 触发 UP, 重置计数器
-            return
-
+        
         star = ctx.result.star
+
         if star not in self.capture_pity:
             return
-
+        
         if self.capture_pity_counter[star] >= self.capture_pity[star]:
             ctx.result.tags.append(TAG_UP)
             self.is_capture_pity[star] = True
             self.capture_pity_counter[star] = 0
             return
 
-        # 更新捕获保底计数器
-        if TAG_UP not in ctx.result.tags:
-            self.capture_pity_counter[star] += 1
+        # if TAG_UP in ctx.result.tags:
+        #     self.capture_pity_counter[star] = 0     # 触发 UP, 重置计数器
+        #     return
+
+        # star = ctx.result.star
+        # if star not in self.capture_pity:
+        #     return
+
+        # if self.capture_pity_counter[star] >= self.capture_pity[star]:
+        #     ctx.result.tags.append(TAG_UP)
+        #     self.is_capture_pity[star] = True
+        #     self.capture_pity_counter[star] = 0
+        #     return
+
+        # # 更新捕获保底计数器
+        # if TAG_UP not in ctx.result.tags:
+        #     self.capture_pity_counter[star] += 1
         
+        # if UpRule.tag not in ctx.rule_bridge:
+        #     return
+        
+        # up_rule = ctx.rule_bridge[UpRule.tag]
+        # if star not in up_rule.up_pity: # type: ignore
+        #     return
+
+        # if up_rule.is_up_pity[star]: # type: ignore
+        #     self.capture_pity_counter[star] += 1
+
+    def callback(self, ctx: RuleContext):
+        """
+        更新 capture_pity_counter 捕获保底计数器
+        """
+        if ctx.result is None:
+            return
+
+        star = ctx.result.star
+
+        if star not in self.capture_pity:
+            return
+
         if UpRule.tag not in ctx.rule_bridge:
             return
         
@@ -1150,11 +1183,12 @@ class CapturePityRule(BaseRule):
         if star not in up_rule.up_pity: # type: ignore
             return
 
-        if up_rule.is_up_pity[star]: # type: ignore
+        if up_rule.is_up_pity[star] and TAG_UP in ctx.result.tags: # type: ignore
             self.capture_pity_counter[star] += 1
-
-    def callback(self, ctx: RuleContext):
-        pass
+            return
+        
+        if TAG_UP in ctx.result.tags:
+            self.capture_pity_counter[star] = 0
 
     def reset(self, ctx: RuleContext):
         """
